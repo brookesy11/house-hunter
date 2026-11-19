@@ -98,35 +98,80 @@
       '<button class="btn primary" type="submit" id="unlockGo">Unlock</button></form><div class="err" id="unlockErr">' + esc(state.unlockError) + "</div>") +
       '<p class="fine">Codes and access details are encrypted on the server and only decrypted on your device.</p></div>';
   }
+  var thumbSize = function (u) { return String(u).replace(/-[a-z0-9_]+\.(jpg|webp)$/i, "-cc_ft_384.jpg"); };
+  function thumb(s, cls) {
+    return '<div class="thumb ph' + (s.photo ? "" : " none") + '">' + (s.photo ? '<img data-src="' + esc(thumbSize(s.photo)) + '" data-pri="0" alt="">' : IC.z) +
+      '<span class="num' + (cls ? " " + cls : "") + '">' + esc(s.n) + "</span></div>";
+  }
+  function endTime(s, day) {
+    if (s.end) return new Date(s.end);
+    var iso = day && day.date; if (!iso) return null;
+    var m = String(s.time || "").match(/[–-]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i) || String(s.time || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i);
+    if (!m) return new Date(iso + "T23:59:00");
+    var h = +m[1] % 12 + (/pm/i.test(m[3]) ? 12 : 0);
+    return new Date(iso + "T" + String(h).padStart(2, "0") + ":" + m[2] + ":00");
+  }
+  function isSeen(s, day) {
+    if (s.seen === true) return true; if (s.seen === false) return false;
+    if (s.proposed || (day && day.status === "Proposed")) return false;
+    if (s.feedbackUrl || s.feedbackDone) return true;
+    if (day && isPast(day)) return true;
+    var e = endTime(s, day); return !!(e && Date.now() > e.getTime());
+  }
+  function accessInfo(s) {
+    if (!(s.code || s.access || s.instructions)) return "";
+    var isDoor = /door/i.test(s.code || ""), code = String(s.code || "").replace(/\s*\(door code\)/i, "");
+    return '<details class="accessInfo"><summary>Show access info</summary><div class="aiBody">' +
+      (code ? '<div><span>' + (isDoor ? "Door code" : "Lockbox code") + '</span><b class="aiCode">' + esc(code) + "</b></div>" : "") +
+      (s.access ? "<div><span>Access</span><p>" + esc(s.access) + "</p></div>" : "") +
+      (s.instructions ? "<div><span>At the door</span><p>" + esc(s.instructions) + "</p></div>" : "") + "</div></details>";
+  }
+  function seenStopCard(s) {
+    var rating = s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "☆".repeat(5 - s.rating) + "</span>" : "";
+    var take = (s.rating || s.notes) ? '<div class="take"><div class="takeTop"><b>Your take</b>' + rating + "</div>" + (s.notes ? "<p>" + esc(s.notes) + "</p>" : "") + "</div>" : "";
+    var tiles = [["Beds", s.beds], ["Baths", s.baths], ["Sq ft", s.sqft ? Number(s.sqft).toLocaleString() : null], ["Acres", s.acres]]
+      .map(function (t) { return '<div class="tile"><b>' + esc(t[1] == null || t[1] === "" ? "—" : t[1]) + "</b><span>" + t[0] + "</span></div>"; }).join("");
+    var extra = [s.built ? "Built " + s.built : "", s.style, s.hoa ? "HOA " + s.hoa : ""].filter(Boolean).join(" · ");
+    var pill = s.feedbackDone ? '<span class="pill green">Feedback sent</span>' : '<span class="pill grey">Seen</span>';
+    var action = "";
+    if (s.feedbackUrl && !s.feedbackDone) action = '<a class="btn primary feedbackBtn" href="' + esc(s.feedbackUrl) + '" target="_blank" rel="noopener noreferrer">' + IC.doc + "<span>Leave feedback</span></a>";
+    else if (s.feedbackDone) action = '<div class="fbDone">✓ Feedback sent' + (s.feedbackUrl ? ' · <a href="' + esc(s.feedbackUrl) + '" target="_blank" rel="noopener noreferrer">open form</a>' : "") + "</div>";
+    else action = '<div class="fbWait">No feedback request yet. It will show here when it arrives.</div>';
+    return '<article class="card stop seenStop">' +
+      '<div class="stopHead">' + thumb(s, "seen") + '<div style="flex:1;min-width:0"><div class="stopAddr">' + esc(s.address) + '</div><div class="stopTime">' + (s.price ? money(s.price) : "") + "</div></div>" + pill + "</div>" +
+      action + '<div class="tiles">' + tiles + "</div>" + (extra ? '<div class="basics">' + esc(extra) + "</div>" : "") + take +
+      '<div class="btns one">' + btn(s.zillow, "View on Zillow", IC.z) + "</div>" + accessInfo(s) + "</article>";
+  }
   function proposedStopCard(s) {
     var tiles = [["Beds", s.beds], ["Baths", s.baths], ["Sq ft", s.sqft ? Number(s.sqft).toLocaleString() : null], ["Acres", s.acres]]
       .map(function (t) { return '<div class="tile"><b>' + esc(t[1] == null || t[1] === "" ? "—" : t[1]) + "</b><span>" + t[0] + "</span></div>"; }).join("");
     var extra = [s.built ? "Built " + s.built : "", s.style, s.hoa ? "HOA " + s.hoa : "", s.dom != null ? s.dom + " days on Zillow" : ""].filter(Boolean).join(" · ");
     return '<article class="card stop proposedStop">' +
-      '<div class="stopHead"><div class="num pending">' + esc(s.n) + '</div><div style="flex:1;min-width:0"><div class="stopTime">' + esc(s.time) + ' <span class="sugg">suggested</span></div><div class="stopAddr">' + esc(s.address) + "</div></div>" +
+      '<div class="stopHead">' + thumb(s, "pending") + '<div style="flex:1;min-width:0"><div class="stopTime">' + esc(s.time) + ' <span class="sugg">suggested</span></div><div class="stopAddr">' + esc(s.address) + "</div></div>" +
       '<span class="pill amber">Proposed</span></div>' +
       (s.drive ? '<div class="driveLine">' + IC.nav + "<span>" + esc(s.drive) + "</span></div>" : "") +
       '<div class="codeBox"><div><div class="lbl">Price</div><div class="code pPrice">' + (s.price ? money(s.price) : "—") + '</div></div><div class="priceR"><small>Not requested yet</small><small>Code comes with confirmation</small></div></div>' +
       '<div class="tiles">' + tiles + "</div>" + (extra ? '<div class="basics">' + esc(extra) + "</div>" : "") +
       '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(s.zillow, "Zillow", IC.z) + "</div></article>";
   }
-  function stopCard(s) {
+  function stopCard(s, day) {
     if (s.proposed) return proposedStopCard(s);
+    if (isSeen(s, day)) return seenStopCard(s);
     var isDoor = /door/i.test(s.code || "");
     var code = String(s.code || "").replace(/\s*\(door code\)/i, "");
     var rating = s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "☆".repeat(5 - s.rating) + "</span>" : "";
     var take = (s.rating || s.notes) ? '<div class="take"><div class="takeTop"><b>Your take</b>' + rating + "</div>" + (s.notes ? "<p>" + esc(s.notes) + "</p>" : "") + "</div>" : "";
     var tel = s.phone ? "tel:" + String(s.phone).replace(/[^0-9+]/g, "") : "";
     return '<article class="card stop">' +
-      '<div class="stopHead"><div class="num' + (s.confirmed === false ? " pending" : "") + '">' + esc(s.n) + '</div><div style="flex:1;min-width:0"><div class="stopTime">' + esc(s.time) + (s.navFrom ? " · " + esc(s.navFrom) : "") + '</div><div class="stopAddr">' + esc(s.address) + "</div></div>" +
+      '<div class="stopHead">' + thumb(s, s.confirmed === false ? "pending" : "") + '<div style="flex:1;min-width:0"><div class="stopTime">' + esc(s.time) + (s.navFrom ? " · " + esc(s.navFrom) : "") + '</div><div class="stopAddr">' + esc(s.address) + "</div></div>" +
       (s.confirmed === false ? '<span class="pill amber">Requested</span>' : '<span class="pill green">Confirmed</span>') + "</div>" +
       '<div class="codeBox"><div><div class="lbl">' + (isDoor ? "Door code" : "Lockbox code") + '</div><div class="code">' + esc(code) + '</div></div><div class="priceR"><b>' + short$(s.price) + "</b>" +
-      (s.was ? '<small class="cut">Cut from ' + short$(s.was) + "</small>" : "<small>" + esc(s.dom) + " days on Zillow</small>") + "</div></div>" +
-      '<div class="basics">' + esc(s.beds) + " bd · " + esc(s.baths) + " ba · " + Number(s.sqft).toLocaleString() + " sq ft · " + esc(s.acres) + " ac · " + esc(s.style) + "</div>" +
+      (s.was ? '<small class="cut">Cut from ' + short$(s.was) + "</small>" : s.dom != null ? "<small>" + esc(s.dom) + " days on Zillow</small>" : "") + "</div></div>" +
+      '<div class="basics">' + esc([s.beds ? s.beds + " bd" : "", s.baths ? s.baths + " ba" : "", s.sqft ? Number(s.sqft).toLocaleString() + " sq ft" : "", s.acres ? s.acres + " ac" : "", s.style].filter(Boolean).join(" · ")) + "</div>" +
       (s.flag ? '<div class="flag">⚠️ ' + esc(s.flag) + "</div>" : "") +
       '<div class="door"><b>At the door:</b> ' + esc(s.instructions) + "</div>" +
       '<div class="agentLine">Listing agent: ' + esc(s.agentName) + " · " + esc(s.phone) + (s.coAgent ? " · Co-agent " + esc(s.coAgent) : "") + "</div>" + take +
-      '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(tel, "Call agent", IC.call) + btn(s.zillow, "Zillow", IC.z) + btn(s.confirmUrl, s.confirmLabel || "Confirmation", IC.doc) + "</div></article>";
+      '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(tel, "Call agent", IC.call) + btn(s.zillow, "Zillow", IC.z) + btn(s.confirmUrl, s.confirmLabel || "Confirmation", IC.doc) + btn(s.feedbackUrl, "Leave feedback", IC.doc) + "</div></article>";
   }
   function mapSVG(m) {
     if (!m) return "";
@@ -177,7 +222,7 @@
       table(["Home", "Price", "$/sq ft", "Sq ft", "Acres", "Built", "Bd/Ba", "HOA", "Style", "Your take"], rows, ["", "r", "r", "r", "r", "r", "r", "mid", "mid", "wide"]);
   }
   function detailsHTML(day) {
-    var rows = day.showings.map(function (s) {
+    var rows = day.showings.filter(function (s) { return !isSeen(s, day); }).map(function (s) {
       return [esc(s.address), esc(s.date), esc(s.time), esc(s.code), esc(s.mls), esc(s.access), esc(s.instructions), esc(s.agent), a(s.confirmUrl, s.confirmLabel), a(s.zillow, "Listing")];
     });
     return '<div class="secHead"><h2>All confirmation details</h2></div>' +
@@ -186,15 +231,23 @@
   function dayView(day) {
     var metrics = (day.metrics || []).map(function (m) { return '<div class="metric"><b>' + esc(m.value) + "</b><span>" + esc(m.label) + "</span>" + (m.detail ? "<em>" + esc(m.detail) + "</em>" : "") + "</div>"; }).join("");
     var prop = day.status === "Proposed", past = !prop && isPast(day);
-    var views = [["stops", "Stops"], ["map", "Route"], ["compare", "Compare"]].concat(prop ? [] : [["details", "All details"]]);
-    var view = state.view === "details" && prop ? "stops" : state.view;
+    var allSeen = !prop && day.showings.every(function (s) { return isSeen(s, day); });
+    if (allSeen) {
+      var fb = day.showings.filter(function (s) { return s.feedbackDone; }).length, todo = day.showings.filter(function (s) { return s.feedbackUrl && !s.feedbackDone; }).length;
+      var rated = day.showings.filter(function (s) { return s.rating; });
+      metrics = [["" + day.showings.length, "Homes seen", ""], [todo ? todo + " to do" : fb + "/" + day.showings.length, "Feedback", todo ? "Tap Leave feedback" : "sent"],
+        [rated.length ? (rated.reduce(function (t, s) { return t + s.rating; }, 0) / rated.length).toFixed(1) + "★" : "—", "Avg rating", rated.length ? rated.length + " rated" : "not rated yet"]]
+        .map(function (m) { return '<div class="metric"><b>' + esc(m[0]) + "</b><span>" + esc(m[1]) + "</span>" + (m[2] ? "<em>" + esc(m[2]) + "</em>" : "") + "</div>"; }).join("");
+    }
+    var views = [["stops", "Stops"]].concat(allSeen ? [] : [["map", "Route"]], [["compare", "Compare"]], prop || allSeen ? [] : [["details", "All details"]]);
+    var view = views.some(function (v) { return v[0] === state.view; }) ? state.view : "stops";
     var body = "";
     if (view === "map") body = routeHTML(day);
     else if (view === "compare") body = compareHTML(day);
     else if (view === "details") body = detailsHTML(day);
-    else body = '<div class="secHead"><h2>Stops</h2><span>' + day.showings.length + ' home' + (day.showings.length === 1 ? "" : "s") + '</span></div><p class="caption">' + esc(day.stopsCaption || "") + '</p><div class="stack">' + day.showings.map(stopCard).join("") + "</div>";
-    var badge = prop ? '<span class="pill amber big">Proposed</span>' : past ? '<span class="pill grey big">Completed</span>' : '<span class="pill green big">Scheduled</span>';
-    var sum = prop ? "Not booked yet · start and end at home · " + (day.minutesPerHome || 30) + " min per home" : "Start and end at home · 30 min per home";
+    else body = '<div class="secHead"><h2>Stops</h2><span>' + day.showings.length + ' home' + (day.showings.length === 1 ? "" : "s") + '</span></div><p class="caption">' + esc(allSeen ? "Homes you've seen. Feedback links show up here as requests come in." : day.stopsCaption || "") + '</p><div class="stack">' + day.showings.map(function (s) { return stopCard(s, day); }).join("") + "</div>";
+    var badge = prop ? '<span class="pill amber big">Proposed</span>' : past || allSeen ? '<span class="pill grey big">Completed</span>' : '<span class="pill green big">Scheduled</span>';
+    var sum = prop ? "Not booked yet · start and end at home · " + (day.minutesPerHome || 30) + " min per home" : allSeen ? "Showing details hidden now that you've seen these homes" : "Start and end at home · 30 min per home";
     var note = prop ? '<div class="propNote"><b>Times are a suggestion.</b> Built from Shows before Hoes. Request these in ShowingTime; confirmed showings replace this proposal.</div>' : "";
     return '<div class="card dayCard' + (prop ? " proposed" : "") + '"><div class="dayTop"><div><div class="dayTitle">' + esc(day.title) + '</div><div class="daySum">' + esc(sum) + "</div></div>" + badge + '</div><div class="metrics">' + metrics + "</div>" + note + "</div>" +
       '<div class="seg" role="tablist" style="margin-top:14px">' + views.map(function (v) { return '<button data-view="' + v[0] + '" class="' + (view === v[0] ? "on" : "") + '">' + v[1] + "</button>"; }).join("") + "</div>" + body;
@@ -230,6 +283,7 @@
     $$("[data-day]", el).forEach(function (b) { b.onclick = function () { state.dayId = b.dataset.day; renderShowings(); window.scrollTo({ top: 0 }); }; });
     var bk = $("#backBtn", el); if (bk) bk.onclick = function () { state.dayId = null; renderShowings(); window.scrollTo({ top: 0 }); };
     var pd = $("details.past", el); if (pd) pd.addEventListener("toggle", function () { state.pastOpen = pd.open; });
+    $$(".thumb img", el).forEach(queueImg);
   }
   function bindUnlock() {
     var f = $("#unlockForm"); if (!f) return;
