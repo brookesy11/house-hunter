@@ -771,10 +771,13 @@
     var all = (state.alerts && state.alerts.items) || [];
     return all.some(function (i) { return String(i.zpid) === String(item.zpid) && (i.saved || i.savedAt || i.onFaves); });
   }
+  function zillowIco(url) {
+    return url ? '<a class="btn ico" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" aria-label="Zillow">' + IC.z + "</a>" : "";
+  }
   function saveBtnHTML(item) {
-    var saved = isSavedHome(item), pending = !saved && savingAt(item.zpid);
-    return saved ? btn(item.url || item.zillow, "Open in Zillow", IC.z, true)
-      : '<button class="btn primary saveBtn" type="button" data-save="' + esc(item.zpid) + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "<span>" + (pending ? "Saving…" : "Save") + "</span></button>";
+    if (!item || !item.zpid || isSavedHome(item) || !(item.url || item.zillow)) return "";
+    var pending = !!savingAt(item.zpid);
+    return '<button class="btn ico saveBtn" type="button" data-save="' + esc(item.zpid) + '" aria-label="' + (pending ? "Saving…" : "Save to Zillow") + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "</button>";
   }
   function itemForSave(z) {
     var a = ((state.alerts && state.alerts.items) || []).filter(function (i) { return String(i.zpid) === String(z); })[0];
@@ -807,7 +810,7 @@
     $$("[data-save]").forEach(function (b) {
       if (String(b.dataset.save) !== String(z)) return;
       b.disabled = !!pending;
-      (b.querySelector("span") || b.lastChild).textContent = pending ? "Saving…" : "Save";
+      b.setAttribute("aria-label", pending ? "Saving…" : "Save to Zillow");
     });
   }
   function saveHome(item, lists) {
@@ -886,7 +889,7 @@
       '<div class="addr">' + esc(item.address) + '</div><div class="city">' + esc(item.city) + (item.area ? " · " + esc(item.area) : "") + typeTag(item) + "</div>" +
       '<div class="prow">' + prow + '</div><div class="tiles">' + tiles + '</div><div class="facts">' + facts + "</div>" + hist +
       (item.note ? '<div class="note">' + esc(item.note) + "</div>" : "") +
-      '<div class="btns">' + saveBtnHTML(item) + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + askBtn(item.zpid, item.address, String(item.city || "").split(",")[0], true) + "</div></div></article>";
+      '<div class="btns">' + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav, true) + zillowIco(item.url) + saveBtnHTML(item) + askBtn(item.zpid, item.address, String(item.city || "").split(",")[0], true) + "</div></div></article>";
   }
   function renderAlerts() {
     var el = $("#tab-alerts"), allItems = ((state.alerts && state.alerts.items) || []).slice();
@@ -973,12 +976,11 @@
       .map(function (t) { return '<div class="tile"><b>' + esc(t[1] == null || t[1] === "" ? "—" : t[1]) + "</b><span>" + t[0] + "</span></div>"; }).join("");
     var facts = h.facts.filter(function (f) { return f[0] !== "Per sq ft" || !h.price; }).map(function (f) { return '<div class="fact' + (String(f[1]).length > 16 ? " full" : "") + '"><span>' + esc(f[0]) + "</span><b>" + esc(f[1]) + "</b></div>"; }).join("");
     var desc = h.description ? '<div class="dDesc clamp"><p>' + esc(h.description).replace(/\n+/g, "</p><p>") + '</p></div><button class="dMore" type="button">More</button>' : "";
-    var save = h.zpid && (h.zillow || h.url) && !isSavedHome(h) ? saveBtnHTML(h) : "";
     return carousel({ photos: h.photos, address: h.address }, true) + '<div class="hb dBody"><div class="addr">' + esc(h.address) + "</div>" +
       '<div class="city">' + esc(h.city) + (h.area ? " · " + esc(h.area) : "") + typeTag(h) + "</div>" +
       '<div class="prow">' + prow + st + '</div><div class="tiles t5">' + tiles + "</div>" + desc +
       (facts ? '<div class="facts">' + facts + "</div>" : "") + histHTML(h.history, null) +
-      '<div class="btns">' + save + btn(h.nav, "Navigate", IC.nav, !save) + (h.zillow ? '<a class="btn ico" href="' + esc(h.zillow) + '" target="_blank" rel="noopener noreferrer" aria-label="Zillow">' + IC.z + "</a>" : "") + askBtn(h.zpid, h.address, String(h.city || "").split(",")[0], true) + "</div></div>";
+      '<div class="btns">' + btn(h.nav, "Navigate", IC.nav, true) + zillowIco(h.zillow || h.url) + saveBtnHTML(h) + askBtn(h.zpid, h.address, String(h.city || "").split(",")[0], true) + "</div></div>";
   }
   var D = null;
   function openDetail(src, isStop) {
