@@ -482,3 +482,17 @@ body.noScroll{overflow:hidden}
 .s2Type .tTag{margin:0;font-size:11px;line-height:18px;padding:1px 8px;border-radius:8px;background:rgba(255,255,255,.92);color:#137333;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .s2Type .tTag.appt{color:#3c4043}
 @media (prefers-color-scheme:dark){.tTag{background:rgba(52,199,89,.18);color:#5fd47f}.tTag.appt{background:rgba(255,255,255,.1);color:#c4c7c5}.s2Type .tTag{background:rgba(0,0,0,.6);color:#6ee08c}.s2Type .tTag.appt{color:#e3e3e3}}
+/* ask the bot: same button as the Zillow icon, mini house mark inside */
+.askBot{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;font:inherit}
+.askBot img{width:20px;height:20px;border-radius:6px;display:block;pointer-events:none}
+.btn.ico{padding:0;width:48px}
+.btns:has(.askBot){display:flex}
+.btns:has(.askBot) > .btn{flex:1 1 0;min-width:0;white-space:nowrap}
+.btns:has(.askBot) > .btn.ico{flex:0 0 48px}
+/* cart progress */
+.cartBtn.busy,.cartBtn.wait{gap:8px;font-weight:650}
+.cartBtn.wait{background:var(--btn)!important;color:var(--text2)!important;font-size:14.5px}
+.cartBtn .spin{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite;opacity:.8;flex-shrink:0}
+.cartBtn .el{font-variant-numeric:tabular-nums;opacity:.7;font-weight:600}
+.cartBtn.flip{animation:flip .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes flip{0%{transform:scale(.94);opacity:.6}60%{transform:scale(1.03);opacity:1}100%{transform:none}}

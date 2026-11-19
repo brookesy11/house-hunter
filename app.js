@@ -63,8 +63,8 @@
   function loadAlerts() { return fetchJSON("data/alerts.json").then(function (a) { state.alerts = a; }).catch(function () { if (!state.alerts) state.alerts = { items: [] }; }); }
   /* Only rebuild the DOM when the data really changed: rebuilding tore down <img>s mid-download on every app open. */
   var lastSig = { s: null, a: null };
-  function loadAll(manual) {
-    var b = $("#refreshBtn"); b.classList.add("spin");
+  function loadAll(manual, quiet) {
+    var b = $("#refreshBtn"); if (!quiet) b.classList.add("spin");
     return Promise.all([loadShowings(), loadAlerts()]).then(function () {
       b.classList.remove("spin");
       var sSig = (state.enc ? state.enc.ct : "none") + "|" + (state.showings ? 1 : 0) + "|" + state.unlockError + "|" + todayISO();
@@ -303,20 +303,32 @@
   /* ---------- ShowingTime cart, one tour per proposed day ----------
      server: data.carts[date] = {status: in_cart|sent|done, url, at, date, stops:[{zpid,start,end}]} (what is really in the cart).
      local markers (per cart date): pending send/update, undo, "I sent it". */
-  var SENT_PREFIX = "hh.cartSent.", UNDO_PREFIX = "hh.cartUndo.", DONE_PREFIX = "hh.cartDone.";
+  var PEND_PREFIX = "hh.cartPend.", DONE_PREFIX = "hh.cartDone.", PEND_MAX = 10 * 60 * 1000;
+  ["hh.cartSent.", "hh.cartUndo."].forEach(function (p) { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(p) === 0) localStorage.removeItem(k); }); });
   var CART_FALLBACK = "https://apptcenter.showingdesk.com";
   var mark = function (p, k) { try { var o = JSON.parse(localStorage.getItem(p + k) || "null"); if (!o || Date.now() - o.at > 6 * 3600 * 1000) return null; return o; } catch (e) { return null; } };
   var setMark = function (p, k) { localStorage.setItem(p + k, JSON.stringify({ at: Date.now() })); };
   function serverCartFor(date) { var c = date && (state.showings && state.showings.carts || {})[date]; return c && c.status ? c : null; }
+  function serverSync(keys) { var y = keys.map(syncFor).filter(function (x) { return x && !x.failed && Date.now() - Date.parse(x.at) < PEND_MAX; })[0]; return y || null; }
+  function anyServerSync() { var c = (state.showings && state.showings.cartSync) || {}; return Object.keys(c).some(function (k) { return serverSync([k]); }); }
+  function syncFor(date) { return date && (state.showings && state.showings.cartSync || {})[date] || null; }
+  /* what the routine has published for this cart: changes when it finishes (status/at/stops) */
+  function cartSig(keys) { return keys.map(function (k) { var c = serverCartFor(k); return c ? [c.status, c.at, JSON.stringify(c.stops || [])].join("~") : "-"; }).join("|"); }
+  var cartKeys = function (day) { return (day.cartDate && day.cartDate !== day.date ? [day.cartDate] : []).concat([day.date]); };
+  var flips = {};
   function cartInfo(day) {
-    var key = day.cartDate || null, sc = serverCartFor(key);
-    var undo = key && mark(UNDO_PREFIX, key);
-    if (undo && sc && Date.parse(sc.at) > undo.at) { localStorage.removeItem(UNDO_PREFIX + key); undo = null; }
-    if (undo) sc = null;
-    if (!sc && key && !undo) localStorage.removeItem(UNDO_PREFIX + key);
-    var k2 = key || day.date, pend = mark(SENT_PREFIX, k2);
-    if (pend && sc && sc.at && Date.parse(sc.at) >= pend.at - 60000) { localStorage.removeItem(SENT_PREFIX + k2); pend = null; }
-    if (pend) pend.locked = Date.now() - pend.at < 10 * 60 * 1000;
+    var key = day.cartDate || null, sc = serverCartFor(key), keys = cartKeys(day), pk = key || day.date;
+    var pend = mark(PEND_PREFIX, pk);
+    if (pend) {
+      var sy = keys.map(syncFor).filter(Boolean)[0], at = sy && Date.parse(sy.at);
+      if (sy && sy.at === pend.syncAt) sy = null;   /* marker from before this tap */
+      if (sy && sy.failed && at >= pend.at - 60000) pend.failed = true;
+      else if (cartSig(keys) !== pend.base && !(sy && !sy.failed && at >= pend.at - 60000)) {
+        localStorage.removeItem(PEND_PREFIX + pk); pend = null; flips[pk] = 1; if (navigator.vibrate) navigator.vibrate(12);
+      } else pend.stale = Date.now() - pend.at > PEND_MAX;
+    }
+    var live = !pend && serverSync(keys);   /* the routine is working on this cart (started elsewhere): "Updating cart…" */
+    if (live) pend = { at: Date.parse(live.at), action: live.action === "uncart" ? "uncart" : "update", server: true };
     var sent = (sc && (sc.status === "sent" || sc.status === "done")) || !!(key && mark(DONE_PREFIX, key));
     var dirty = false;
     if (sc && sc.status === "in_cart" && sc.stops) {
@@ -324,22 +336,83 @@
       var have = sc.stops.map(function (x) { return x.zpid + "@" + parseT(x.start); }).sort().join();
       dirty = want !== have || (sc.date && sc.date !== day.date);
     }
-    return { key: key, sc: sc, pend: pend, sent: sent, dirty: dirty, inCart: sc && sc.status === "in_cart" };
+    return { key: key, pk: pk, sc: sc, pend: pend, sent: sent, dirty: dirty, inCart: sc && sc.status === "in_cart" };
   }
-  function sendCart(day, b, label) {
+  function startPend(day, action) {
+    localStorage.setItem(PEND_PREFIX + (day.cartDate || day.date), JSON.stringify({ at: Date.now(), action: action, base: cartSig(cartKeys(day)), syncAt: (cartKeys(day).map(syncFor).filter(Boolean)[0] || {}).at || null }));
+    renderShowings(); pollSoon();
+  }
+  function sendCart(day, b, action) {
     if (!hookCfg()) { openSettings(true); return; }
-    b.disabled = true; b.textContent = "Sending…";
-    postHook({ action: "cart", date: day.date, cartDate: day.cartDate || undefined, stops: stopsPayload(day) }).then(function () {
-      setMark(SENT_PREFIX, day.cartDate || day.date); renderShowings();
-    }, function (e) { b.disabled = false; b.textContent = label; toast(hookErr(e)); });
+    var label = b.innerHTML; b.disabled = true;
+    postHook({ action: "cart", date: day.date, cartDate: day.cartDate || undefined, stops: stopsPayload(day) }).then(function () { loadShowings().then(function () { startPend(day, action); }); },
+      function (e) { b.disabled = false; b.innerHTML = label; toast(hookErr(e)); });
   }
   function cartAction(day, action, okMsg) {
     if (!hookCfg()) { openSettings(true); return; }
     var key = day.cartDate || day.date;
     postHook({ action: action, date: key }).then(function () {
-      setMark(action === "uncart" ? UNDO_PREFIX : DONE_PREFIX, key); localStorage.removeItem(SENT_PREFIX + key); renderShowings(); toast(okMsg);
+      if (action === "uncart") { loadShowings().then(function () { startPend(day, "uncart"); }); return; }
+      setMark(DONE_PREFIX, key); renderShowings(); toast(okMsg);
     }, function (e) { toast(hookErr(e)); });
   }
+  function retryCart(day) {
+    var p = mark(PEND_PREFIX, day.cartDate || day.date) || {}, b = $('.pday[data-date="' + day.date + '"] .cartBtn');
+    localStorage.removeItem(PEND_PREFIX + (day.cartDate || day.date));
+    if (p.action === "uncart") cartAction(day, "uncart"); else sendCart(day, b || document.createElement("button"), p.action || "cart");
+  }
+  var PEND_LABEL = { cart: "Adding to cart", update: "Updating cart", uncart: "Undoing cart" };
+  var elapsed = function (at) { var t = Math.max(0, Math.floor((Date.now() - at) / 1000)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+  function pendHTML(p) {
+    if (p.failed || p.stale) return '<button class="btn primary cartBtn wait" type="button" disabled>' + (p.failed ? "Couldn’t update the cart" : "Still working, check back shortly") + "</button>" +
+      '<div class="cartLinks"><button type="button" data-cart="retry">Retry</button></div>';
+    return '<button class="btn primary cartBtn busy" type="button" disabled><i class="spin"></i>' + (PEND_LABEL[p.action] || PEND_LABEL.cart) + '… <span class="el" data-el="' + p.at + '">' + elapsed(p.at) + "</span></button>";
+  }
+  /* while a cart action is pending: poll the published data every 15 s, tick the elapsed time every second */
+  function pendingKeys() { return Object.keys(localStorage).filter(function (k) { if (k.indexOf(PEND_PREFIX) !== 0) return false; var p = mark(PEND_PREFIX, k.slice(PEND_PREFIX.length)); return p && Date.now() - p.at <= PEND_MAX; }); }
+  var pollT = null, tickT = null;
+  function pollSoon() {
+    clearTimeout(pollT); clearInterval(tickT);
+    if (!pendingKeys().length && !anyServerSync()) return;
+    tickT = setInterval(function () {
+      var stale = false;
+      $$("[data-el]").forEach(function (e) { var at = +e.dataset.el; if (Date.now() - at > PEND_MAX) stale = true; else e.textContent = elapsed(at); });
+      if (stale) { renderShowings(); pollSoon(); }
+    }, 1000);
+    pollT = setTimeout(function () { loadAll(false, true).then(pollSoon, pollSoon); }, 15000);
+  }
+
+  /* ---------- ask the bot: copy a context line, open the Grok Bot chat ---------- */
+  var BOT_LINK = "grokbot://app/v1/agent?id=043E5835-B7D1-439D-A1D5-DC8C2F83F1F1";
+  var askBtn = function (zpid, street, town, big) {
+    return '<button class="' + (big ? "btn ico" : "sb ico") + ' askBot" type="button" aria-label="Ask Grok Bot" data-z="' + esc(zpid || "") + '" data-a="' + esc(street || "") + '" data-c="' + esc(town || "") + '"><img src="icons/icon-180.png?v=6" alt="" draggable="false"></button>';
+  };
+  function askLine(z, street, town) {
+    var hit = null, sched = (state.showings && state.showings.days) || [];
+    var find = function (days, prop) { days.forEach(function (d) { (d.showings || []).forEach(function (s) { if (!hit && z && String(s.zpid) === String(z) && !(d.date && d.date < todayISO())) hit = { s: s, d: d, prop: prop }; }); }); };
+    find(sched, false); find(planDays(), true);
+    var info = "";
+    if (hit) {
+      var d = hit.d, s = hit.s, st;
+      if (hit.prop) { var c = serverCartFor(d.cartDate || d.date); st = c && (c.status === "sent" || c.status === "done") ? "sent" : c && c.status === "in_cart" ? "in cart" : "proposed"; }
+      else st = s.confirmed === false ? "requested" : isSeen(s, d) ? "seen" : "confirmed";
+      var t = s.startMin != null ? fmtT(s.startMin) : String(s.time || "").replace(/[–-].*?(\s?[AP]M)$/, "$1");
+      var when = d.date ? new Date(d.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).replace(",", "") : "";
+      info = " (" + [when, t].filter(Boolean).join(" ") + " showing, " + st + ")";
+    }
+    return "About " + street + (town ? ", " + town : "") + info + ": ";
+  }
+  function copyText(t) {
+    try { if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t); } catch (e) {}
+    var ta = document.createElement("textarea"); ta.value = t; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;opacity:0;top:0";
+    document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (e) {} ta.remove(); return Promise.resolve();
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".askBot"); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var go = function () { toast("Copied"); setTimeout(function () { location.href = BOT_LINK; }, 650); };
+    copyText(askLine(b.dataset.z, b.dataset.a, b.dataset.c)).then(go, go);
+  }, true);
 
   /* ---------- showings tab ---------- */
   function todayISO() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
@@ -416,6 +489,7 @@
     return '<a class="sb' + (primary ? " pri" : "") + (label ? "" : " ico") + '" href="' + esc(href) + '"' + x + (label ? "" : ' aria-label="Zillow"') + ">" + icon + (label ? "<span>" + esc(label) + "</span>" : "") + "</a>";
   };
   var DOTS = '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>';
+  var askS = function (s) { var p = String(s.address || "").split(","); return askBtn(s.zpid, p[0], s.city || (p[1] || "").trim()); };
   function card2(s, o) {
     var street = String(s.address || "").split(",")[0], town = s.city || String(s.address || "").split(",")[1] || "";
     var stats = [String(town).trim(), basics(s, o.built)].filter(Boolean).join(" · ");
@@ -435,7 +509,7 @@
   function seenStopCard(s) {
     var pill = s.feedbackDone ? '<span class="s2Pill green">Feedback sent</span>' : '<span class="s2Pill">Seen</span>';
     var fb = s.feedbackUrl && !s.feedbackDone ? sb(s.feedbackUrl, "Leave feedback", IC.doc, true) : "";
-    return card2(s, { cls: "seen", pills: pill, noType: true, built: true, extra: take(s) + accessInfo(s), actions: fb + sb(s.zillow, fb ? "" : "Zillow", IC.z) });
+    return card2(s, { cls: "seen", pills: pill, noType: true, built: true, extra: take(s) + accessInfo(s), actions: fb + sb(s.zillow, fb ? "" : "Zillow", IC.z) + askS(s) });
   }
   function proposedStopCard(s, day, ctx) {
     ctx = ctx || {};
@@ -444,7 +518,7 @@
       var c = ctx.cart.sc.stops.filter(function (x) { return String(x.zpid) === String(s.zpid); })[0];
       ct = !c ? '<span class="s2Pill">Not in cart</span>' : parseT(c.start) !== s.startMin ? '<span class="s2Pill">Cart ' + esc(fmtS(parseT(c.start))) + "</span>" : "";
     }
-    var acts = sb(s.nav, "Navigate", IC.nav, true) + sb(s.zillow, "", IC.z);
+    var acts = sb(s.nav, "Navigate", IC.nav, true) + sb(s.zillow, "", IC.z) + askS(s);
     if (ctx.locked) return card2(s, { time: s.time, pills: '<span class="s2Pill amber">Requested</span>', actions: acts });
     var zo = zps(day).map(String), zi = zo.indexOf(String(s.zpid));
     var opts = (zi > 0 ? '<option value="up">Move up</option>' : "") + (zi > -1 && zi < zo.length - 1 ? '<option value="down">Move down</option>' : "") +
@@ -461,7 +535,7 @@
     var extra = (code ? '<div class="codeRow"><span>' + (isDoor ? "Door code" : "Lockbox") + '</span><b>' + esc(code) + "</b></div>" : "") +
       (s.flag ? '<div class="flag">' + esc(s.flag) + "</div>" : "") + (s.instructions ? '<div class="door">' + esc(s.instructions) + "</div>" : "") + take(s);
     return card2(s, { time: s.time, green: !pend, pills: pend ? '<span class="s2Pill amber">Requested</span>' : "", extra: extra,
-      actions: sb(s.nav, "Navigate", IC.nav, true) + sb(tel, "Call", IC.call, false, false) + sb(s.confirmUrl, "Edit", IC.doc) + sb(s.feedbackUrl, "Feedback", IC.doc) + sb(s.zillow, "", IC.z) });
+      actions: sb(s.nav, "Navigate", IC.nav, true) + sb(tel, "Call", IC.call, false, false) + sb(s.confirmUrl, "Edit", IC.doc) + sb(s.feedbackUrl, "Feedback", IC.doc) + sb(s.zillow, "", IC.z) + askS(s) });
   }
   function stopsHTML(day, ctx) {
     return '<div class="stack s2List">' + day.showings.map(function (s, i) {
@@ -549,11 +623,12 @@
     var cart = "";
     if (prop && !locked) {
       var sc = ci.sc, review = '<a class="btn primary cartBtn" href="' + esc((sc && sc.url) || CART_FALLBACK) + '" target="_blank" rel="noopener noreferrer">Review cart</a>';
-      if (ci.pend) cart = '<button class="btn primary cartBtn" type="button" disabled>' + (ci.inCart ? "Updating cart…" : "Sent, adding to cart") + "</button>";
-      else if (ci.inCart && ci.dirty) cart = '<button class="btn primary cartBtn" data-cart="update" type="button">Update cart</button>';
-      else if (ci.inCart) cart = review;
-      else cart = '<button class="btn primary cartBtn" data-cart="send" type="button">Send to ShowingTime cart</button>';
-      if (ci.inCart) cart += '<div class="cartLinks">' + (ci.dirty || ci.pend ? '<a href="' + esc((sc && sc.url) || CART_FALLBACK) + '" target="_blank" rel="noopener noreferrer">Review</a>' : "") +
+      var fl = flips[ci.pk] ? " flip" : ""; delete flips[ci.pk];
+      if (ci.pend) cart = pendHTML(ci.pend);
+      else if (ci.inCart && ci.dirty) cart = '<button class="btn primary cartBtn' + fl + '" data-cart="update" type="button">Update cart</button>';
+      else if (ci.inCart) cart = review.replace("cartBtn", "cartBtn" + fl);
+      else cart = '<button class="btn primary cartBtn' + fl + '" data-cart="send" type="button">Send to ShowingTime cart</button>';
+      if (ci.inCart && !ci.pend) cart += '<div class="cartLinks">' + (ci.dirty ? '<a href="' + esc((sc && sc.url) || CART_FALLBACK) + '" target="_blank" rel="noopener noreferrer">Review</a>' : "") +
         '<button type="button" data-cart="sent">I sent it</button><button type="button" data-cart="uncart">Undo cart</button></div>';
     }
     if (prop && day.edited && !locked && ctx.single) cart += '<button class="resetOrder" data-reset type="button">Reset</button>';
@@ -608,7 +683,8 @@
       var day = days[sec.dataset.date]; if (!day) return;
       $$("[data-cart]", sec).forEach(function (b) { b.onclick = function () {
         var k = b.dataset.cart;
-        if (k === "send" || k === "update") sendCart(day, b, b.textContent);
+        if (k === "send" || k === "update") sendCart(day, b, k === "update" ? "update" : "cart");
+        else if (k === "retry") retryCart(day);
         else if (k === "sent") cartAction(day, "cart_sent", "Marked as sent");
         else if (k === "uncart") cartAction(day, "uncart", "Cart undone");
       }; });
@@ -771,7 +847,7 @@
       '<div class="addr">' + esc(item.address) + '</div><div class="city">' + esc(item.city) + (item.area ? " · " + esc(item.area) : "") + typeTag(item) + "</div>" +
       '<div class="prow">' + prow + '</div><div class="tiles">' + tiles + '</div><div class="facts">' + facts + "</div>" + hist +
       (item.note ? '<div class="note">' + esc(item.note) + "</div>" : "") +
-      '<div class="btns">' + saveBtn + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + "</div></div></article>";
+      '<div class="btns">' + saveBtn + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + askBtn(item.zpid, item.address, String(item.city || "").split(",")[0], true) + "</div></div></article>";
   }
   function renderAlerts() {
     var el = $("#tab-alerts"), allItems = ((state.alerts && state.alerts.items) || []).slice();
@@ -862,7 +938,7 @@
       '<div class="city">' + esc(h.city) + (h.area ? " · " + esc(h.area) : "") + typeTag(h) + "</div>" +
       '<div class="prow">' + prow + st + '</div><div class="tiles t5">' + tiles + "</div>" + desc +
       (facts ? '<div class="facts">' + facts + "</div>" : "") + histHTML(h.history, null) +
-      '<div class="btns">' + btn(h.nav, "Navigate", IC.nav, true) + btn(h.zillow, "Open in Zillow", IC.z) + "</div></div>";
+      '<div class="btns">' + btn(h.nav, "Navigate", IC.nav, true) + (h.zillow ? '<a class="btn ico" href="' + esc(h.zillow) + '" target="_blank" rel="noopener noreferrer" aria-label="Zillow">' + IC.z + "</a>" : "") + askBtn(h.zpid, h.address, String(h.city || "").split(",")[0], true) + "</div></div>";
   }
   var D = null;
   function openDetail(src, isStop) {
@@ -962,7 +1038,8 @@
   };
   $("#hookClear").onclick = function () { localStorage.removeItem(HOOK_STORE); $("#hookUrl").value = ""; $("#hookKey").value = ""; $("#hookStatus").textContent = "Cleared"; };
   window.addEventListener("scroll", function () { $("#top").classList.toggle("scrolled", window.scrollY > 4); }, { passive: true });
-  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") loadAll(false); });
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") loadAll(false).then(pollSoon, pollSoon); });
+  window.addEventListener("focus", function () { if (pendingKeys().length || anyServerSync()) loadAll(false).then(pollSoon, pollSoon); });
 
   if ("serviceWorker" in navigator) {
     var hadController = !!navigator.serviceWorker.controller, reloaded = false;
@@ -974,5 +1051,5 @@
     });
   }
   setTab(state.tab);
-  loadAll(false);
+  loadAll(false).then(pollSoon, pollSoon);
 })();
