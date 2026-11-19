@@ -128,7 +128,7 @@
       '<div class="secHead"><h2>Directions</h2><span>Opens Google Maps</span></div><div class="card links">' + rows + "</div>";
   }
   function table(cols, rows, cls) {
-    return '<div class="card tblWrap"><table><thead><tr>' + cols.map(function (c, i) { return "<th" + (cls && cls[i] === "num" ? ' class="num"' : "") + ">" + esc(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+    return '<div class="card tblWrap"><table><thead><tr>' + cols.map(function (c, i) { return "<th" + (cls && cls[i] === "r" ? ' class="r"' : "") + ">" + esc(c) + "</th>"; }).join("") + "</tr></thead><tbody>" +
       rows.map(function (r) { return "<tr>" + r.map(function (c, i) { return '<td class="' + ((cls && cls[i]) || "") + '">' + c + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>";
   }
   var a = function (href, label) { return href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + "</a>" : ""; };
@@ -138,7 +138,7 @@
         s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "</span>" + (s.notes ? "<br>" + esc(s.notes) : "") : esc(s.notes || "Not toured")];
     });
     return '<div class="secHead"><h2>Side by side</h2></div><p class="caption">' + esc(day.compareCaption || "") + "</p>" +
-      table(["Home", "Price", "$/sq ft", "Sq ft", "Acres", "Built", "Bd/Ba", "HOA", "Style", "Your take"], rows, ["", "num", "num", "num", "num", "num", "num", "mid", "mid", "wide"]);
+      table(["Home", "Price", "$/sq ft", "Sq ft", "Acres", "Built", "Bd/Ba", "HOA", "Style", "Your take"], rows, ["", "r", "r", "r", "r", "r", "r", "mid", "mid", "wide"]);
   }
   function detailsHTML(day) {
     var rows = day.showings.map(function (s) {

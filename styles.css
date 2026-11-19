@@ -141,7 +141,7 @@ main{max-width:720px;margin:0 auto;padding:6px calc(16px + var(--safeR)) calc(10
 table{border-collapse:separate;border-spacing:0;font-size:13.5px;min-width:100%}
 th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);padding:11px 12px;background:var(--sub2);white-space:nowrap}
 td{padding:11px 12px;border-top:1px solid var(--line2);vertical-align:top}
-td.num, th.num{text-align:right;white-space:nowrap}
+td.r, th.r{text-align:right;white-space:nowrap}
 td.nw{white-space:nowrap}
 td.wide{min-width:220px}
 td.mid{min-width:150px}
