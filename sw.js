@@ -1,7 +1,7 @@
 /* House Hunter service worker: network first for everything (data files included) so updates show on next open; cache is the offline fallback. */
-var CACHE = "house-hunter-v10";
+var CACHE = "house-hunter-v11";
 var ASSETS = ["./", "index.html", "styles.css", "app.js", "manifest.json",
-  "icons/icon-180.png?v=2", "icons/icon-192.png?v=2", "icons/icon-512.png?v=2", "icons/icon-maskable-512.png?v=2", "icons/favicon.ico?v=2"];
+  "icons/icon-180.png?v=3", "icons/icon-192.png?v=3", "icons/icon-512.png?v=3", "icons/icon-maskable-512.png?v=3", "icons/favicon.ico?v=3"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) {
