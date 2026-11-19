@@ -73,6 +73,19 @@
   </div>
 </div>
 
+<div id="listSheet" class="sheetWrap listWrap" hidden>
+  <div class="sheetBg" data-list-close></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Save to">
+    <div class="grab"></div>
+    <h2>Save to</h2>
+    <div class="group" id="listOpts"></div>
+    <div class="listBtns">
+      <button class="btn" type="button" data-list-close>Cancel</button>
+      <button class="btn primary" id="listSave" type="button" disabled>Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="viewer" class="viewer" hidden>
   <div class="vTop"><span id="vCount" class="vCount"></span><button class="vClose" id="vClose" type="button" aria-label="Close">✕</button></div>
   <div class="vTrack" id="vTrack"></div>

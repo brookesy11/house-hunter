@@ -1,5 +1,5 @@
 /* House Hunter service worker: network first for everything (data files included) so updates show on next open; cache is the offline fallback. */
-var CACHE = "house-hunter-v15";
+var CACHE = "house-hunter-v16";
 var ASSETS = ["./", "index.html", "styles.css", "app.js", "manifest.json",
   "apple-touch-icon.png?v=6", "icons/icon-180.png?v=6", "icons/icon-192.png?v=6", "icons/icon-512.png?v=6", "icons/icon-maskable-512.png?v=6", "icons/favicon.ico?v=6"];
 

@@ -762,20 +762,62 @@
   }
   function queueImg(img) { loadImg(img, img.dataset.src); }
 
-  /* ---------- save to Shared Faves via webhook ---------- */
+  /* ---------- save to Zillow lists via webhook ---------- */
   var SAVING_STORE = "hh.saving.v1";
+  var ZILLOW_LISTS = ["Shows before Hoes", "Shared Faves", "Personal"];
   function savingMap() { try { return JSON.parse(localStorage.getItem(SAVING_STORE) || "{}"); } catch (e) { return {}; } }
   function savingAt(z) { var m = savingMap(); return m[z] && Date.now() - m[z] < 24 * 3600 * 1000 ? m[z] : 0; }
   function isSavedHome(item) {
     var all = (state.alerts && state.alerts.items) || [];
     return all.some(function (i) { return String(i.zpid) === String(item.zpid) && (i.saved || i.savedAt || i.onFaves); });
   }
-  function saveHome(item, b) {
+  function saveBtnHTML(item) {
+    var saved = isSavedHome(item), pending = !saved && savingAt(item.zpid);
+    return saved ? btn(item.url || item.zillow, "Open in Zillow", IC.z, true)
+      : '<button class="btn primary saveBtn" type="button" data-save="' + esc(item.zpid) + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "<span>" + (pending ? "Saving…" : "Save") + "</span></button>";
+  }
+  function itemForSave(z) {
+    var a = ((state.alerts && state.alerts.items) || []).filter(function (i) { return String(i.zpid) === String(z); })[0];
+    if (a) return a;
+    var s = stopByZ(String(z)); if (!s) return null;
+    var p = String(s.address || "").split(",");
+    return { zpid: s.zpid, address: p[0], city: (s.cityFull || s.city || (p[1] || "").trim()), url: s.zillow || s.url };
+  }
+  var saveTarget = null;
+  function pickedLists() { return $$("#listSheet input[type=checkbox]:checked").map(function (c) { return c.value; }); }
+  function syncListSave() { var b = $("#listSave"); if (b) b.disabled = !pickedLists().length; }
+  function closeListSheet() {
+    var el = $("#listSheet"); if (!el || el.hidden) return;
+    el.hidden = true;
+    $$("input[type=checkbox]", el).forEach(function (c) { c.checked = false; });
+    syncListSave(); saveTarget = null;
+  }
+  function openListSheet(item) {
     if (!hookCfg()) { openSettings(true); return; }
-    b.disabled = true; b.lastChild.textContent = "Saving…";
-    postHook({ action: "save", zpid: String(item.zpid), address: item.address + ", " + item.city, url: item.url }).then(function () {
+    saveTarget = item;
+    var g = $("#listOpts");
+    if (g && !g.childElementCount) g.innerHTML = ZILLOW_LISTS.map(function (n) {
+      return '<label class="row checkRow"><span>' + esc(n) + '</span><input type="checkbox" value="' + esc(n) + '"></label>';
+    }).join("");
+    $$("input[type=checkbox]", $("#listSheet")).forEach(function (c) { c.checked = false; });
+    syncListSave();
+    $("#listSheet").hidden = false;
+  }
+  function markSaveBtns(z, pending) {
+    $$("[data-save]").forEach(function (b) {
+      if (String(b.dataset.save) !== String(z)) return;
+      b.disabled = !!pending;
+      (b.querySelector("span") || b.lastChild).textContent = pending ? "Saving…" : "Save";
+    });
+  }
+  function saveHome(item, lists) {
+    if (!hookCfg()) { openSettings(true); return; }
+    if (!lists || !lists.length) return;
+    closeListSheet();
+    markSaveBtns(item.zpid, true);
+    postHook({ action: "save", zpid: String(item.zpid), address: item.address + ", " + item.city, url: item.url || item.zillow, lists: lists }).then(function () {
       var m = savingMap(); m[item.zpid] = Date.now(); localStorage.setItem(SAVING_STORE, JSON.stringify(m));
-    }, function (e) { b.disabled = false; b.lastChild.textContent = "Save"; toast(hookErr(e)); });
+    }, function (e) { markSaveBtns(item.zpid, false); toast(hookErr(e)); });
   }
 
   /* ---------- dismiss (per device) ---------- */
@@ -840,14 +882,11 @@
     var facts = [["Built", [item.built, item.style].filter(Boolean).join(" · ")], ["HOA", item.hoa], ["Per sq ft", ppsf ? money(ppsf) : ""], ["On Zillow", item.dom != null ? item.dom + " days" : ""]]
       .filter(function (f) { return f[1]; }).map(function (f) { return '<div class="fact' + (f[0] === "Built" && String(f[1]).length > 16 ? " full" : "") + '"><span>' + f[0] + "</span><b>" + esc(f[1]) + "</b></div>"; }).join("");
     var hist = histHTML(item.history, item.kind);
-    var saved = isSavedHome(item), pending = !saved && savingAt(item.zpid);
-    var saveBtn = saved ? btn(item.url, "Open in Zillow", IC.z, true)
-      : '<button class="btn primary saveBtn" type="button" data-save="' + esc(item.zpid) + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "<span>" + (pending ? "Saving…" : "Save") + "</span></button>";
     return '<article class="card home" data-id="' + esc(cardId(item)) + '">' + carousel(item) + '<div class="hb"><div class="date">' + esc(item.headline || "") + (item.headline ? " · " : "") + esc(fmtDate(item.date)) + "</div>" +
       '<div class="addr">' + esc(item.address) + '</div><div class="city">' + esc(item.city) + (item.area ? " · " + esc(item.area) : "") + typeTag(item) + "</div>" +
       '<div class="prow">' + prow + '</div><div class="tiles">' + tiles + '</div><div class="facts">' + facts + "</div>" + hist +
       (item.note ? '<div class="note">' + esc(item.note) + "</div>" : "") +
-      '<div class="btns">' + saveBtn + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + askBtn(item.zpid, item.address, String(item.city || "").split(",")[0], true) + "</div></div></article>";
+      '<div class="btns">' + saveBtnHTML(item) + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + askBtn(item.zpid, item.address, String(item.city || "").split(",")[0], true) + "</div></div></article>";
   }
   function renderAlerts() {
     var el = $("#tab-alerts"), allItems = ((state.alerts && state.alerts.items) || []).slice();
@@ -874,7 +913,7 @@
     });
     $$("article.home .addr, article.home .city", el).forEach(function (t) { t.classList.add("tapOpen"); t.onclick = function () {
       var card = t.closest("article.home"), it = allItems.filter(function (i) { return cardId(i) === card.dataset.id; })[0]; if (it) openDetail(it, false); }; });
-    $$("[data-save]", el).forEach(function (b) { b.onclick = function () { var it = allItems.filter(function (i) { return String(i.zpid) === b.dataset.save; })[0]; if (it) saveHome(it, b); }; });
+    $$("[data-save]", el).forEach(function (b) { b.onclick = function () { var it = itemForSave(b.dataset.save); if (it) openListSheet(it); }; });
     var sd = $("#showDis", el); if (sd) sd.onclick = function () { state.showDismissed = !state.showDismissed; renderAlerts(); };
     var rd = $("#restoreDis", el); if (rd) rd.onclick = function () { setDismissed([]); state.showDismissed = false; renderAlerts(); toast("Restored all"); };
     var newest = items.length ? items.map(function (i) { return i.date || ""; }).sort().pop() : "";
@@ -934,11 +973,12 @@
       .map(function (t) { return '<div class="tile"><b>' + esc(t[1] == null || t[1] === "" ? "—" : t[1]) + "</b><span>" + t[0] + "</span></div>"; }).join("");
     var facts = h.facts.filter(function (f) { return f[0] !== "Per sq ft" || !h.price; }).map(function (f) { return '<div class="fact' + (String(f[1]).length > 16 ? " full" : "") + '"><span>' + esc(f[0]) + "</span><b>" + esc(f[1]) + "</b></div>"; }).join("");
     var desc = h.description ? '<div class="dDesc clamp"><p>' + esc(h.description).replace(/\n+/g, "</p><p>") + '</p></div><button class="dMore" type="button">More</button>' : "";
+    var save = h.zpid && (h.zillow || h.url) && !isSavedHome(h) ? saveBtnHTML(h) : "";
     return carousel({ photos: h.photos, address: h.address }, true) + '<div class="hb dBody"><div class="addr">' + esc(h.address) + "</div>" +
       '<div class="city">' + esc(h.city) + (h.area ? " · " + esc(h.area) : "") + typeTag(h) + "</div>" +
       '<div class="prow">' + prow + st + '</div><div class="tiles t5">' + tiles + "</div>" + desc +
       (facts ? '<div class="facts">' + facts + "</div>" : "") + histHTML(h.history, null) +
-      '<div class="btns">' + btn(h.nav, "Navigate", IC.nav, true) + (h.zillow ? '<a class="btn ico" href="' + esc(h.zillow) + '" target="_blank" rel="noopener noreferrer" aria-label="Zillow">' + IC.z + "</a>" : "") + askBtn(h.zpid, h.address, String(h.city || "").split(",")[0], true) + "</div></div>";
+      '<div class="btns">' + save + btn(h.nav, "Navigate", IC.nav, !save) + (h.zillow ? '<a class="btn ico" href="' + esc(h.zillow) + '" target="_blank" rel="noopener noreferrer" aria-label="Zillow">' + IC.z + "</a>" : "") + askBtn(h.zpid, h.address, String(h.city || "").split(",")[0], true) + "</div></div>";
   }
   var D = null;
   function openDetail(src, isStop) {
@@ -955,6 +995,7 @@
     var mb = $(".dMore", sc), dd = $(".dDesc", sc);
     if (mb) requestAnimationFrame(function () { if (dd.scrollHeight <= dd.clientHeight + 4) { mb.remove(); dd.classList.remove("clamp"); } });
     if (mb) mb.onclick = function () { dd.classList.remove("clamp"); mb.remove(); };
+    $$("[data-save]", sc).forEach(function (b) { b.onclick = function () { var it = itemForSave(b.dataset.save); if (it) openListSheet(it); }; });
     clearTimeout(D._t); D.hidden = false; document.body.classList.add("noScroll"); sc.scrollTop = 0;
     var sh = $(".dSheet", D); sh.style.transform = ""; sh.classList.remove("closing");
   }
@@ -982,7 +1023,11 @@
       if (lock === "y" && dy > 110) closeDetail(); else sh.style.transform = "";
     }, { passive: true });
   }
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && D && !D.hidden && V.el.hidden) closeDetail(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if ($("#listSheet") && !$("#listSheet").hidden) { closeListSheet(); return; }
+    if (D && !D.hidden && V.el.hidden) closeDetail();
+  });
 
   /* ---------- full-screen viewer ---------- */
   var V = { el: $("#viewer"), track: $("#vTrack"), n: 0 };
@@ -1029,6 +1074,19 @@
     sheet.hidden = false;
   };
   $$("[data-close]", sheet).forEach(function (b) { b.onclick = function () { sheet.hidden = true; }; });
+  (function () {
+    var el = $("#listSheet"), g = $("#listOpts");
+    if (g) g.innerHTML = ZILLOW_LISTS.map(function (n) {
+      return '<label class="row checkRow"><span>' + esc(n) + '</span><input type="checkbox" value="' + esc(n) + '"></label>';
+    }).join("");
+    if (el) {
+      el.addEventListener("change", syncListSave);
+      $$("[data-list-close]", el).forEach(function (b) { b.onclick = closeListSheet; });
+    }
+    if ($("#listSave")) $("#listSave").onclick = function () {
+      var lists = pickedLists(); if (!lists.length || !saveTarget) return; saveHome(saveTarget, lists);
+    };
+  })();
   $("#lockBtn").onclick = function () { localStorage.removeItem(KEY_STORE); state.showings = null; sheet.hidden = true; renderShowings(); setTab("showings"); toast("Locked on this device"); };
   $("#reloadBtn").onclick = function () { sheet.hidden = true; loadAll(true); };
   $("#hookSave").onclick = function () {

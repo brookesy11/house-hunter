@@ -496,3 +496,10 @@ body.noScroll{overflow:hidden}
 .cartBtn .el{font-variant-numeric:tabular-nums;opacity:.7;font-weight:600}
 .cartBtn.flip{animation:flip .45s cubic-bezier(.3,1.6,.5,1)}
 @keyframes flip{0%{transform:scale(.94);opacity:.6}60%{transform:scale(1.03);opacity:1}100%{transform:none}}
+
+/* zillow list picker */
+.listWrap{z-index:95}
+.checkRow{min-height:48px;font:inherit;color:inherit;cursor:pointer;-webkit-user-select:none;user-select:none}
+.checkRow input{width:22px;height:22px;accent-color:var(--brand);flex-shrink:0}
+.listBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.listBtns .btn:disabled{opacity:.4;pointer-events:none}
