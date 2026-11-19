@@ -8,7 +8,7 @@
   var short$ = function (v) { return "$" + (v >= 1e6 ? (v / 1e6).toFixed(3).replace(/0+$/, "").replace(/\.$/, "") + "M" : Math.round(v / 1000) + "K"); };
   var KEY_STORE = "hh.showingsKey.v1", TAB_STORE = "hh.tab", VIEW_STORE = "hh.view", FILTER_STORE = "hh.filter", SEEN_STORE = "hh.alertsSeen", DISMISS_STORE = "hh.dismissed.v1";
   var GREEN = "#22a559", YELLOW = "#e8b923";
-  var state = { tab: localStorage.getItem(TAB_STORE) || "showings", view: localStorage.getItem(VIEW_STORE) || "stops",
+  var state = { viewBy: {}, tab: localStorage.getItem(TAB_STORE) || "showings", view: localStorage.getItem(VIEW_STORE) || "stops",
     filter: localStorage.getItem(FILTER_STORE) || "all", showings: null, dayId: null, alerts: null, enc: null, unlockError: "" };
   var IC = {
     nav: '<svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 20.5l7.5-3.6 7.5 3.6z" fill="currentColor"/></svg>',
@@ -90,73 +90,94 @@
             function () { if (navigator.onLine === false) throw new Error("offline"); return { ok: true, opaque: true }; });
   }
   function hookErr(e) { return e.message === "offline" ? "Offline" : e.message === "HTTP 401" || e.message === "HTTP 403" ? "Webhook key rejected" : "Webhook error (" + e.message + ")"; }
-  var reorderTimer = null;
-  function queueReorderPost(date, stops) {   /* one server run ~4 s after the last move, not one per tap */
-    clearTimeout(reorderTimer);
-    reorderTimer = setTimeout(function () { postHook({ action: "reorder", date: date, stops: stops }).catch(function (e) { toast(hookErr(e)); }); }, 4000);
-  }
   function openSettings(focusHook) {
     $("#settingsBtn").onclick();
     if (focusHook) setTimeout(function () { $("#hookUrl").focus(); }, 250);
   }
 
-  /* ---------- proposed day: on-device reorder + re-timing via OSRM ---------- */
-  var ORDER_PREFIX = "hh.order.";
+  /* ---------- proposed days: on-device plan (reorder, move between days, change dates) + re-timing via OSRM ----------
+     The server copy is data.proposals (one entry per proposed day). Edits live in localStorage (PLAN_STORE) until the
+     server catches up (a debounced {action:"plan"} webhook POST makes the routine regenerate the same plan). */
+  var PLAN_STORE = "hh.plan.v2";
   function fmtT(m) { m = Math.round(m) % 1440; var h = Math.floor(m / 60), mi = m % 60; return ((h % 12) || 12) + ":" + String(mi).padStart(2, "0") + " " + (h < 12 ? "AM" : "PM"); }
   function fmtS(m) { return fmtT(m).replace(/ (AM|PM)$/, ""); }
+  function parseT(t) { var m = String(t || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i); if (!m) return null; var h = +m[1] % 12 + (m[3] && /pm/i.test(m[3]) ? 12 : 0); if (!m[3] && +m[1] === 12) h = 12; return h * 60 + +m[2]; }
   function durTxt(sec) { var m = Math.max(1, Math.round(sec / 60)), h = Math.floor(m / 60); return h ? h + " hr " + (m % 60) + " min" : m + " min"; }
   var ceil5 = function (m) { return Math.ceil(m / 5) * 5; };
+  var ceil15 = function (m) { return Math.ceil(m / 15) * 15; };   /* ShowingTime only takes :00/:15/:30/:45 starts */
   function fullAddr(s) { return String(s.address).split(",")[0] + ", " + (s.cityFull || s.city + ", CO"); }
   function gm(points, way) { var q = "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(points[0]) + "&destination=" + encodeURIComponent(points[points.length - 1]) + "&travelmode=driving"; return way && way.length ? q + "&waypoints=" + encodeURIComponent(way.join("|")) : q; }
   function merc(lat, lon, z) { var sc = 256 * Math.pow(2, z), r = lat * Math.PI / 180; return [(lon + 180) / 360 * sc, (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * sc]; }
-  function savedOrder(day) {
-    try { var o = JSON.parse(localStorage.getItem(ORDER_PREFIX + day.date) || "null"); if (o && o.gen === day.generated) return o; if (o) localStorage.removeItem(ORDER_PREFIX + day.date); } catch (e) {}
-    return null;
+  var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
+  var zps = function (d) { return d.showings.map(function (s) { return s.zpid; }); };
+  function serverProps() {
+    var d = state.showings || {};
+    var ps = d.proposals || (d.proposed ? [Object.assign({}, d.proposed, { id: "p-" + d.proposed.date })] : []);
+    return ps.filter(function (p) { return p && p.showings && p.showings.length; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
   }
-  /* returns the proposed day with any on-device order applied (pure: does not mutate the server copy) */
-  function applyOrder(day) {
-    var o = savedOrder(day); if (!o) return day;
-    var d = JSON.parse(JSON.stringify(day)), by = {};
-    d.showings.forEach(function (s) { by[s.zpid] = s; });
-    var st = o.order.map(function (z) { return by[z]; }).filter(Boolean);
-    if (st.length !== d.showings.length) return day;
-    var per = d.minutesPerHome || 30, first = d.firstStart, t = first, names = ["Home"].concat(st.map(function (s) { return s.short; }), ["Home"]);
+  var propGen = function (ps) { return ps.map(function (d) { return d.date + "@" + d.generated; }).join("|"); };
+  var zKey = function (ps) { return ps.reduce(function (a, d) { return a.concat(zps(d)); }, []).sort().join(); };
+  function loadPlan(ps) {
+    var o; try { o = JSON.parse(localStorage.getItem(PLAN_STORE) || "null"); } catch (e) { o = null; }
+    if (!o) return null;
+    if (o.gen === propGen(ps)) return o;
+    if (o.zs === zKey(ps) && Date.now() - o.at < 3 * 3600 * 1000) return o;   /* server regenerated, same homes: keep my edits */
+    localStorage.removeItem(PLAN_STORE); return null;
+  }
+  /* one proposed day, re-timed from OSRM legs (pure; tpl = server day used for map image / projection / home) */
+  function computeDay(tpl, pd, pool) {
+    var d = clone(tpl), st = pd.order.map(function (z) { return clone(pool[z]); }).filter(Boolean);
+    d.date = pd.date; d.id = "p-" + pd.date; d.cartDate = pd.cartDate === undefined ? tpl.date : pd.cartDate; d.srcId = tpl.id;
+    if (!pd.legs) { d.showings = st; return d; }
+    var o = pd, per = d.minutesPerHome || 30, first = ceil15(d.firstStart || 600), t = first, names = ["Home"].concat(st.map(function (s) { return s.short; }), ["Home"]);
     var legMin = o.legs.map(function (l) { return ceil5(l.duration / 60); });
     st.forEach(function (s, i) {
-      if (i) t = t + per + legMin[i];
+      if (i) t = ceil15(t + per + legMin[i]);
       s.n = i + 1; s.startMin = t; s.endMin = t + per; s.time = fmtS(t) + "–" + fmtT(t + per);
       s.drive = durTxt(o.legs[i].duration) + " · " + (o.legs[i].distance / 1609.344).toFixed(1) + " mi from " + names[i];
     });
     var addrs = [d.homeAddr].concat(st.map(fullAddr), [d.homeAddr]);
     st.forEach(function (s, i) { s.nav = gm([addrs[i], addrs[i + 1]]); });
     var leave = first - legMin[0], back = st[st.length - 1].endMin + legMin[legMin.length - 1];
-    var tot = o.legs.reduce(function (a, l) { return a + l.duration; }, 0), dist = o.legs.reduce(function (a, l) { return a + l.distance; }, 0);
+    var tot = o.legs.reduce(function (a, l) { return a + l.duration; }, 0);
     d.metrics = [{ value: fmtT(leave), label: "Leave home" }, { value: durTxt(tot), label: "Driving" }, { value: fmtT(back), label: "Back home" }];
     d.routeLinks = [{ title: "Full route", site: "Google Maps", href: gm([d.homeAddr, d.homeAddr], st.map(fullAddr)), mark: "★" }].concat(o.legs.map(function (l, i) {
       return { title: names[i] + " → " + names[i + 1], site: "Leave " + fmtT(i ? st[i - 1].endMin : leave), href: gm([addrs[i], addrs[i + 1]]), mark: i < st.length ? String(i + 1) : "H" };
     }));
     if (d.map) {
+      var pr = d.map.proj;
       d.map.legs = o.legs.map(function (l, i) { return { path: l.path, label: durTxt(l.duration) + " · " + (l.distance / 1609.344).toFixed(1) + " mi", x: l.x, y: l.y, ret: i === o.legs.length - 1 }; });
-      (d.map.stops || []).forEach(function (ms) { var s = by[ms.id]; if (s && st.indexOf(s) >= 0) { ms.n = s.n; ms.time = fmtS(s.startMin); } else if (ms.id === "home") ms.time = "Leave " + fmtS(leave); });
+      var hm = (d.map.stops || []).filter(function (m) { return m.id === "home"; })[0];
+      if (hm) hm.time = "Leave " + fmtS(leave);
+      if (pr) d.map.stops = (hm ? [hm] : []).concat(st.map(function (s) {
+        var m = merc(s.lat, s.lon, pr.z), x = +((m[0] - pr.ox) * pr.f).toFixed(1), y = +((m[1] - pr.oy) * pr.f).toFixed(1), right = x < 410;
+        return { id: s.zpid, n: s.n, name: s.short, time: fmtS(s.startMin), confirmed: false, x: x, y: y, lx: right ? x + 16 : x - 16, ly: y - 2, anchor: right ? "start" : "end" };
+      }));
     }
-    d.showings = st; d.reordered = true;
+    d.showings = st; d.edited = true;
     return d;
   }
-  function reorder(day, order) {
-    if (order.join() === day.showings.map(function (s) { return s.zpid; }).join()) {
-      localStorage.removeItem(ORDER_PREFIX + day.date); renderShowings();
-      if (hookCfg()) queueReorderPost(day.date, stopsPayload(day));
-      return Promise.resolve();
-    }
-    var by = {}; day.showings.forEach(function (s) { by[s.zpid] = s; });
-    var st = order.map(function (z) { return by[z]; });
-    var pts = [day.homePt].concat(st.map(function (s) { return [s.lat, s.lon]; }), [day.homePt]);
-    var url = "https://router.project-osrm.org/route/v1/driving/" + pts.map(function (p) { return p[1].toFixed(6) + "," + p[0].toFixed(6); }).join(";") + "?overview=false&steps=true&geometries=geojson";
-    toast("Updating route…");
+  /* the proposed days as shown: server copy with any on-device plan applied */
+  function planDays() {
+    var ps = serverProps(), plan = loadPlan(ps);
+    if (!plan) return ps.map(function (d) { var c = clone(d); c.cartDate = d.date; c.srcId = d.id; return c; });
+    var pool = {}, tplOf = {}, byId = {};
+    ps.forEach(function (d) { byId[d.id] = d; d.showings.forEach(function (s) { pool[s.zpid] = s; tplOf[s.zpid] = d; }); });
+    return plan.days.map(function (pd) {
+      pd.order = pd.order.filter(function (z) { return pool[z]; });
+      if (!pd.order.length) return null;
+      var tpl = byId[pd.src] || tplOf[pd.order[0]];
+      if (!pd.legs && zps(tpl).join() !== pd.order.join()) pd = Object.assign({}, pd, { order: zps(tpl) });   /* never show stale times */
+      return computeDay(tpl, pd, pool);
+    }).filter(Boolean).sort(function (a, b) { return a.date.localeCompare(b.date); });
+  }
+  function osrmLegs(tpl, stops) {
+    var pts = [tpl.homePt].concat(stops.map(function (s) { return [s.lat, s.lon]; }), [tpl.homePt]);
+    var url = "https://router.project-osrm.org/route/v1/driving/" + pts.map(function (p) { return (+p[1]).toFixed(6) + "," + (+p[0]).toFixed(6); }).join(";") + "?overview=false&steps=true&geometries=geojson";
     return fetch(url).then(function (r) { return r.json(); }).then(function (R) {
       if (R.code !== "Ok") throw new Error(R.code);
-      var pr = day.map && day.map.proj;
-      var legs = R.routes[0].legs.map(function (lg) {
+      var pr = tpl.map && tpl.map.proj;
+      return R.routes[0].legs.map(function (lg) {
         var g = []; lg.steps.forEach(function (stp) { g = g.concat(stp.geometry.coordinates); });
         var path = "", x = 0, y = 0;
         if (pr) {
@@ -167,17 +188,75 @@
         }
         return { duration: lg.duration, distance: lg.distance, path: path, x: x, y: y };
       });
-      localStorage.setItem(ORDER_PREFIX + day.date, JSON.stringify({ gen: day.generated, order: order, legs: legs, at: Date.now() }));
-      var nd = applyOrder(day);
-      if (hookCfg()) queueReorderPost(day.date, stopsPayload(nd));
-      renderShowings(); toast("Route updated");
+    });
+  }
+  /* apply an edit: next = [{date, src, cartDate, order, legs?}] ; days whose order changed get fresh OSRM legs */
+  function commitPlan(next, msg) {
+    var ps = serverProps(), pool = {}, byId = {}, cur = {};
+    ps.forEach(function (d) { byId[d.id] = d; d.showings.forEach(function (s) { pool[s.zpid] = s; }); });
+    planDays().forEach(function (d) { cur[d.date] = d; });
+    next = next.filter(function (pd) { return pd.order.length; });
+    toast("Updating route…");
+    return Promise.all(next.map(function (pd) {
+      var tpl = byId[pd.src] || ps[0], was = cur[pd.date];
+      var same = was && zps(was).join() === pd.order.join();
+      if (same && was.edited === !!pd.legs) return pd;
+      if (!pd.legs && zps(tpl).join() === pd.order.join()) return pd;
+      return osrmLegs(tpl, pd.order.map(function (z) { return pool[z]; })).then(function (legs) { pd.legs = legs; return pd; });
+    })).then(function (days) {
+      var serverSame = days.length === ps.length && days.every(function (pd, i) {
+        var s = ps.filter(function (p) { return p.date === pd.date; })[0]; return s && zps(s).join() === pd.order.join();
+      });
+      if (serverSame) localStorage.removeItem(PLAN_STORE);
+      else localStorage.setItem(PLAN_STORE, JSON.stringify({ gen: propGen(ps), zs: zKey(ps), at: Date.now(), days: days }));
+      renderShowings(); toast(msg || "Route updated");
+      if (hookCfg()) queuePlanPost();
     }).catch(function () { toast("Couldn't update the route. Try again."); });
   }
+  var planNow = function () { return planDays().map(function (d) { return { date: d.date, src: d.srcId, cartDate: d.cartDate, order: zps(d), legs: d.edited ? legsOf(d) : null }; }); };
+  function legsOf(d) {   /* keep the legs of an already edited day */
+    var o; try { o = JSON.parse(localStorage.getItem(PLAN_STORE) || "null"); } catch (e) {}
+    var pd = o && o.days.filter(function (x) { return x.date === d.date; })[0];
+    return pd && pd.legs && pd.order.join() === zps(d).join() ? pd.legs : null;
+  }
+  function reorderDay(date, order) {
+    commitPlan(planNow().map(function (pd) { return pd.date === date ? Object.assign(pd, { order: order, legs: null }) : pd; }));
+  }
+  function moveStop(z, from, to) {
+    var p = planNow(), src = p.filter(function (x) { return x.date === from; })[0];
+    if (to === "new") {
+      var last = p.map(function (x) { return x.date; }).sort().pop(), nd = new Date(last + "T12:00:00"); nd.setDate(nd.getDate() + 1);
+      to = nd.getFullYear() + "-" + String(nd.getMonth() + 1).padStart(2, "0") + "-" + String(nd.getDate()).padStart(2, "0");
+      while (p.some(function (x) { return x.date === to; })) { nd.setDate(nd.getDate() + 1); to = nd.toISOString().slice(0, 10); }
+      p.push({ date: to, src: src.src, cartDate: null, order: [], legs: null });
+    }
+    p.forEach(function (x) {
+      if (x.date === from) { x.order = x.order.filter(function (y) { return y !== z; }); x.legs = null; }
+      if (x.date === to) { x.order = x.order.concat([z]); x.legs = null; }
+    });
+    commitPlan(p, "Moved to " + new Date(to + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }));
+  }
+  function setDayDate(old, nw) {
+    if (!nw || nw === old) return;
+    var p = planNow(), a = p.filter(function (x) { return x.date === old; })[0], b = p.filter(function (x) { return x.date === nw; })[0];
+    if (b) { b.order = b.order.concat(a.order); b.legs = null; p = p.filter(function (x) { return x !== a; }); }
+    else a.date = nw;
+    var c = serverCartFor(a.cartDate);
+    commitPlan(p, c && c.status === "in_cart" ? "Moved. Cart keeps the old date until you update it" : "Date changed");
+  }
   function stopsPayload(d) { return d.showings.map(function (s) { return { zpid: s.zpid, address: fullAddr(s), start: fmtT(s.startMin), end: fmtT(s.endMin) }; }); }
-  function bindReorder(el, day) {
-    var list = $(".stack", el); if (!list) return;
+  var planTimer = null;
+  function queuePlanPost() {   /* one server run ~4 s after the last edit, not one per tap */
+    clearTimeout(planTimer);
+    planTimer = setTimeout(function () {
+      state.planPosted = true;
+      postHook({ action: "plan", days: planDays().map(function (d) { return { date: d.date, stops: stopsPayload(d) }; }) }).catch(function (e) { toast(hookErr(e)); });
+    }, 4000);
+  }
+  function bindReorder(sec, day) {
+    var list = $(".stack", sec); if (!list) return;
     var order = function () { return $$(".proposedStop", list).map(function (c) { return c.dataset.zpid; }); };
-    var commit = function () { var o = order(); if (o.join() !== day.showings.map(function (s) { return s.zpid; }).join()) reorder(state.serverProposal, o); };
+    var commit = function () { var o = order(); if (o.join() !== zps(day).join()) reorderDay(day.date, o); };
     $$(".mv", list).forEach(function (b) { b.onclick = function (e) {
       e.stopPropagation(); var c = b.closest(".proposedStop"), sib = b.dataset.d === "up" ? c.previousElementSibling : c.nextElementSibling;
       if (!sib) return; if (b.dataset.d === "up") list.insertBefore(c, sib); else list.insertBefore(sib, c); commit(); }; });
@@ -196,15 +275,48 @@
       var end = function () { clearTimeout(timer); if (!drag) return; drag = false; card.style.transform = ""; card.classList.remove("dragging"); list.classList.remove("sorting"); commit(); };
       g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
     });
+    $$(".moveTo select", list).forEach(function (sel) { sel.onchange = function () { var v = sel.value; sel.value = ""; if (v) moveStop(sel.dataset.zpid, day.date, v); }; });
   }
-  var SENT_PREFIX = "hh.cartSent.";
-  function cartState(day) { try { var o = JSON.parse(localStorage.getItem(SENT_PREFIX + day.date) || "null"); return o && Date.now() - o.at < 10 * 60 * 1000 ? o : null; } catch (e) { return null; } }
-  function sendCart(day, b) {
+
+  /* ---------- ShowingTime cart, one tour per proposed day ----------
+     server: data.carts[date] = {status: in_cart|sent|done, url, at, date, stops:[{zpid,start,end}]} (what is really in the cart).
+     local markers (per cart date): pending send/update, undo, "I sent it". */
+  var SENT_PREFIX = "hh.cartSent.", UNDO_PREFIX = "hh.cartUndo.", DONE_PREFIX = "hh.cartDone.";
+  var CART_FALLBACK = "https://apptcenter.showingdesk.com";
+  var mark = function (p, k) { try { var o = JSON.parse(localStorage.getItem(p + k) || "null"); if (!o || Date.now() - o.at > 6 * 3600 * 1000) return null; return o; } catch (e) { return null; } };
+  var setMark = function (p, k) { localStorage.setItem(p + k, JSON.stringify({ at: Date.now() })); };
+  function serverCartFor(date) { var c = date && (state.showings && state.showings.carts || {})[date]; return c && c.status ? c : null; }
+  function cartInfo(day) {
+    var key = day.cartDate || null, sc = serverCartFor(key);
+    var undo = key && mark(UNDO_PREFIX, key);
+    if (undo && sc && Date.parse(sc.at) > undo.at) { localStorage.removeItem(UNDO_PREFIX + key); undo = null; }
+    if (undo) sc = null;
+    if (!sc && key && !undo) localStorage.removeItem(UNDO_PREFIX + key);
+    var k2 = key || day.date, pend = mark(SENT_PREFIX, k2);
+    if (pend && sc && sc.at && Date.parse(sc.at) >= pend.at - 60000) { localStorage.removeItem(SENT_PREFIX + k2); pend = null; }
+    if (pend) pend.locked = Date.now() - pend.at < 10 * 60 * 1000;
+    var sent = (sc && (sc.status === "sent" || sc.status === "done")) || !!(key && mark(DONE_PREFIX, key));
+    var dirty = false;
+    if (sc && sc.status === "in_cart" && sc.stops) {
+      var want = stopsPayload(day).map(function (x) { return x.zpid + "@" + parseT(x.start); }).sort().join();
+      var have = sc.stops.map(function (x) { return x.zpid + "@" + parseT(x.start); }).sort().join();
+      dirty = want !== have || (sc.date && sc.date !== day.date);
+    }
+    return { key: key, sc: sc, pend: pend, sent: sent, dirty: dirty, inCart: sc && sc.status === "in_cart" };
+  }
+  function sendCart(day, b, label) {
     if (!hookCfg()) { openSettings(true); return; }
     b.disabled = true; b.textContent = "Sending…";
-    postHook({ action: "cart", date: day.date, stops: stopsPayload(day) }).then(function () {
-      localStorage.setItem(SENT_PREFIX + day.date, JSON.stringify({ at: Date.now() })); renderShowings();
-    }, function (e) { b.disabled = false; b.textContent = "Send to ShowingTime cart"; toast(hookErr(e)); });
+    postHook({ action: "cart", date: day.date, cartDate: day.cartDate || undefined, stops: stopsPayload(day) }).then(function () {
+      setMark(SENT_PREFIX, day.cartDate || day.date); renderShowings();
+    }, function (e) { b.disabled = false; b.textContent = label; toast(hookErr(e)); });
+  }
+  function cartAction(day, action, okMsg) {
+    if (!hookCfg()) { openSettings(true); return; }
+    var key = day.cartDate || day.date;
+    postHook({ action: action, date: key }).then(function () {
+      setMark(action === "uncart" ? UNDO_PREFIX : DONE_PREFIX, key); localStorage.removeItem(SENT_PREFIX + key); renderShowings(); toast(okMsg);
+    }, function (e) { toast(hookErr(e)); });
   }
 
   /* ---------- showings tab ---------- */
@@ -214,11 +326,10 @@
     var d = state.showings || {}, all = d.days || [];
     var upcoming = all.filter(function (x) { return !isPast(x); }).sort(function (x, y) { return (x.date || "").localeCompare(y.date || ""); });
     var past = all.filter(isPast).sort(function (x, y) { return (y.date || "").localeCompare(x.date || ""); });
-    return { upcoming: upcoming, past: past, proposed: d.proposed || null };
+    return { upcoming: upcoming, past: past, proposed: planDays() };
   }
   function findDay(id) {
     var g = dayGroups();
-    if (id === "proposed") return g.proposed;
     return g.upcoming.concat(g.past).filter(function (x) { return x.id === id; })[0] || null;
   }
   function unlockHTML() {
@@ -239,11 +350,14 @@
     return [s.beds ? s.beds + " bd" : "", s.baths ? s.baths + " ba" : "", s.sqft ? Number(s.sqft).toLocaleString() + " sqft" : "", s.acres ? s.acres + " ac" : "", withBuilt && s.built ? "Built " + s.built : ""].filter(Boolean).join(" · ");
   }
   /* shared head: thumb | number+time, address, basics | price */
-  function head(s, timeLine, right) {
+  function head(s, timeLine, right, noType) {
     return '<div class="sHead">' + thumb(s) + '<div class="sMain">' + (timeLine ? '<div class="sTime">' + timeLine + "</div>" : "") +
-      '<div class="sAddr">' + esc(s.address) + '</div><div class="sBasics">' + esc(basics(s, !timeLine)) + "</div></div>" +
+      '<div class="sAddr">' + esc(s.address) + '</div><div class="sBasics">' + esc(basics(s, !timeLine)) + (noType ? "" : typeTag(s)) + "</div></div>" +
       '<div class="sRight">' + (s.price ? '<b>' + short$(s.price) + "</b>" : "") + (right || "") + "</div></div>";
   }
+  /* showType: go_and_show | appt (older data: accessType text) -> tiny tag next to the basics */
+  function showTypeOf(s) { var v = String(s.showType || s.accessType || "").toLowerCase(); return /go/.test(v) && /show/.test(v) ? "go_and_show" : /appt|appointment/.test(v) ? "appt" : ""; }
+  var typeTag = function (s) { var t = showTypeOf(s); return t ? ' <span class="tTag' + (t === "appt" ? " appt" : "") + '">' + (t === "appt" ? "Appt" : "Go &amp; Show") + "</span>" : ""; };
   var driveLine = function (txt) { return txt ? '<div class="sDrive">' + IC.nav + "<span>" + esc(txt) + "</span></div>" : ""; };
   function endTime(s, day) {
     if (s.end) return new Date(s.end);
@@ -275,21 +389,32 @@
   function seenStopCard(s) {
     var pill = s.feedbackDone ? '<span class="tag green">Feedback sent</span>' : '<span class="tag">Seen</span>';
     var fb = s.feedbackUrl && !s.feedbackDone ? '<a class="btn primary feedbackBtn" href="' + esc(s.feedbackUrl) + '" target="_blank" rel="noopener noreferrer">' + IC.doc + "<span>Leave feedback</span></a>" : "";
-    return '<article class="card stop seenStop">' + head(s, "", pill) + fb + take(s) +
+    return '<article class="card stop seenStop">' + head(s, "", pill, true) + fb + take(s) +
       '<div class="btns one">' + btn(s.zillow, "Zillow", IC.z) + "</div>" + accessInfo(s) + "</article>";
   }
-  function proposedStopCard(s) {
-    return '<article class="card stop proposedStop" data-zpid="' + esc(s.zpid) + '">' + '<div class="mvBox"><button class="mv" data-d="up" type="button" aria-label="Move up">▴</button><span class="grip" aria-label="Drag to reorder">⋮⋮</span><button class="mv" data-d="down" type="button" aria-label="Move down">▾</button></div>' + head(s, '<i class="n p">' + esc(s.n) + "</i>" + esc(s.time)) +
-      driveLine(s.drive ? s.drive.replace(/ · [\d.]+ mi/, "") : "") +
+  var dLabel = function (iso) { return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
+  function proposedStopCard(s, day, ctx) {
+    ctx = ctx || {};
+    var ct = "";
+    if (ctx.cart && ctx.cart.inCart && ctx.cart.sc.stops) {   /* plan vs cart, only where they differ */
+      var c = ctx.cart.sc.stops.filter(function (x) { return String(x.zpid) === String(s.zpid); })[0];
+      ct = !c ? ' <span class="tag">Not in cart</span>' : parseT(c.start) !== s.startMin ? ' <span class="tag">Cart ' + esc(fmtS(parseT(c.start))) + "</span>" : "";
+    }
+    if (ctx.locked) return '<article class="card stop">' + head(s, '<i class="n p">' + esc(s.n) + '</i><span class="tt">' + esc(s.time) + '</span> <span class="tag amber">Requested</span>') +
+      driveLine(s.drive ? s.drive.replace(/ · [\d.]+ mi/, "") : "") + '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(s.zillow, "Zillow", IC.z) + "</div></article>";
+    var opts = (ctx.others || []).map(function (d) { return '<option value="' + esc(d) + '">' + esc(dLabel(d)) + "</option>"; }).join("") + '<option value="new">New day</option>';
+    var mv = '<label class="moveTo">Move<select data-zpid="' + esc(s.zpid) + '" aria-label="Move to another day"><option value="">Move to…</option>' + opts + "</select></label>";
+    return '<article class="card stop proposedStop" data-zpid="' + esc(s.zpid) + '">' + '<div class="mvBox"><button class="mv" data-d="up" type="button" aria-label="Move up">▴</button><span class="grip" aria-label="Drag to reorder">⋮⋮</span><button class="mv" data-d="down" type="button" aria-label="Move down">▾</button></div>' + head(s, '<i class="n p">' + esc(s.n) + '</i><span class="tt">' + esc(s.time) + "</span>" + ct) +
+      '<div class="dRow">' + driveLine(s.drive ? s.drive.replace(/ · [\d.]+ mi/, "") : "") + mv + "</div>" +
       '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(s.zillow, "Zillow", IC.z) + "</div></article>";
   }
-  function stopCard(s, day) {
-    if (s.proposed) return proposedStopCard(s);
+  function stopCard(s, day, ctx) {
+    if (s.proposed) return proposedStopCard(s, day, ctx);
     if (isSeen(s, day)) return seenStopCard(s);
     var isDoor = /door/i.test(s.code || ""), code = String(s.code || "").replace(/\s*\(door code\)/i, "");
     var tel = s.phone ? "tel:" + String(s.phone).replace(/[^0-9+]/g, "") : "";
     var pend = s.confirmed === false;
-    return '<article class="card stop">' + head(s, '<i class="n' + (pend ? " p" : "") + '">' + esc(s.n) + "</i>" + esc(s.time) + (pend ? ' <span class="tag amber">Requested</span>' : "")) +
+    return '<article class="card stop">' + head(s, '<i class="n' + (pend ? " p" : "") + '">' + esc(s.n) + '</i><span class="tt">' + esc(s.time) + "</span>" + (pend ? ' <span class="tag amber">Requested</span>' : "")) +
       driveLine(s.navFrom) +
       (code ? '<div class="codeRow"><span>' + (isDoor ? "Door code" : "Lockbox") + '</span><b>' + esc(code) + "</b></div>" : "") +
       (s.flag ? '<div class="flag">' + esc(s.flag) + "</div>" : "") +
@@ -351,8 +476,8 @@
     return '<div class="secHead"><h2>All confirmation details</h2></div>' +
       table(["Home", "Date", "Time", "Lockbox code", "MLS", "Access", "Instructions", "Listing agent", "Confirmation", "Zillow"], rows, ["", "nw", "nw", "ok nw", "nw", "wide", "wide", "mid", "nw", "nw"]);
   }
-  function dayView(day) {
-    if (day.status === "Proposed") { state.serverProposal = day; day = applyOrder(day); }
+  function dayView(day, ctx) {
+    ctx = ctx || {};
     var M = function (v, l) { return '<div class="metric"><b>' + esc(v) + "</b><span>" + esc(l) + "</span></div>"; };
     var prop = day.status === "Proposed", past = !prop && isPast(day);
     var allSeen = !prop && day.showings.every(function (s) { return isSeen(s, day); });
@@ -363,23 +488,37 @@
       metrics = M(day.showings.length, "Seen") + M(todo ? todo + " due" : sent + "/" + day.showings.length, "Feedback") +
         M(rated.length ? (rated.reduce(function (t, s) { return t + s.rating; }, 0) / rated.length).toFixed(1) + "★" : "—", "Rating");
     }
+    var vkey = prop ? "p" + day.date : "d", cur = prop ? (state.viewBy[vkey] || "stops") : state.view;
     var views = [["stops", "Stops"]].concat(allSeen ? [] : [["map", "Route"]], [["compare", "Compare"]], prop || allSeen ? [] : [["details", "Details"]]);
-    var view = views.some(function (v) { return v[0] === state.view; }) ? state.view : "stops";
+    var view = views.some(function (v) { return v[0] === cur; }) ? cur : "stops";
+    var ci = prop ? cartInfo(day) : null, locked = !!(ci && ci.sent);
     var body = "";
     if (view === "map") body = routeHTML(day);
     else if (view === "compare") body = compareHTML(day);
     else if (view === "details") body = detailsHTML(day);
-    else body = '<div class="stack" style="margin-top:12px">' + day.showings.map(function (s) { return stopCard(s, day); }).join("") + "</div>";
-    var badge = prop ? '<span class="tag amber">Proposed</span>' : past || allSeen ? '<span class="tag">Done</span>' : "";
+    else body = '<div class="stack" style="margin-top:12px">' + day.showings.map(function (s) { return stopCard(s, day, { others: ctx.others, cart: ci, locked: locked }); }).join("") + "</div>";
+    var badge = prop ? (locked ? '<span class="tag amber">Sent</span>' : ci.inCart ? '<span class="tag amber">In cart</span>' : '<span class="tag amber">Proposed</span>') : past || allSeen ? '<span class="tag">Done</span>' : "";
     var cart = "";
-    if (prop) {
-      var cs = cartState(day);
-      cart = '<button class="btn primary cartBtn" id="cartBtn" type="button"' + (cs ? " disabled" : "") + ">" + (cs ? "Sent, adding to cart" : "Send to ShowingTime cart") + "</button>" +
-        (day.reordered ? '<button class="resetOrder" id="resetOrder" type="button">Reset order</button>' : "");
+    if (prop && !locked) {
+      var sc = ci.sc, review = '<a class="btn primary cartBtn" href="' + esc((sc && sc.url) || CART_FALLBACK) + '" target="_blank" rel="noopener noreferrer">Review cart</a>';
+      if (ci.pend) cart = '<button class="btn primary cartBtn" type="button" disabled>' + (ci.inCart ? "Updating cart…" : "Sent, adding to cart") + "</button>";
+      else if (ci.inCart && ci.dirty) cart = '<button class="btn primary cartBtn" data-cart="update" type="button">Update cart</button>';
+      else if (ci.inCart) cart = review;
+      else cart = '<button class="btn primary cartBtn" data-cart="send" type="button">Send to ShowingTime cart</button>';
+      if (ci.inCart) cart += '<div class="cartLinks">' + (ci.dirty || ci.pend ? '<a href="' + esc((sc && sc.url) || CART_FALLBACK) + '" target="_blank" rel="noopener noreferrer">Review</a>' : "") +
+        '<button type="button" data-cart="sent">I sent it</button><button type="button" data-cart="uncart">Undo cart</button></div>';
     }
-    var title = prop ? (day.date ? new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "Proposed route") : day.label || day.title;
-    return '<div class="card dayCard' + (prop ? " proposed" : "") + '"><div class="dayTop"><div class="dayTitle">' + esc(title) + "</div>" + badge + '</div><div class="metrics">' + metrics + "</div>" + cart + "</div>" +
-      '<div class="seg" role="tablist" style="margin-top:12px">' + views.map(function (v) { return '<button data-view="' + v[0] + '" class="' + (view === v[0] ? "on" : "") + '">' + v[1] + "</button>"; }).join("") + "</div>" + body;
+    if (prop && day.edited && !locked && ctx.single) cart += '<button class="resetOrder" data-reset type="button">Reset</button>';
+    var title = prop ? dLabel(day.date) : day.label || day.title;
+    var titleHTML = prop && !locked ? '<label class="dateEdit">' + esc(title) + '<i>▾</i><input type="date" value="' + esc(day.date) + '" min="' + todayISO() + '" aria-label="Change date"></label>' : esc(title);
+    return '<section class="pday" data-date="' + esc(day.date || "") + '"><div class="card dayCard' + (prop ? " proposed" : "") + '"><div class="dayTop"><div class="dayTitle">' + titleHTML + "</div>" + badge + '</div><div class="metrics">' + metrics + "</div>" + cart + "</div>" +
+      '<div class="seg" role="tablist" style="margin-top:12px">' + views.map(function (v) { return '<button data-view="' + v[0] + '" data-vkey="' + vkey + '" class="' + (view === v[0] ? "on" : "") + '">' + v[1] + "</button>"; }).join("") + "</div>" + body + "</section>";
+  }
+  function planHTML(days) {
+    var dates = days.map(function (d) { return d.date; });
+    var anyEdit = days.some(function (d) { return d.edited; }) || !!localStorage.getItem(PLAN_STORE);
+    return days.map(function (d) { return dayView(d, { others: dates.filter(function (x) { return x !== d.date; }) }); }).join('<div class="dayGap"></div>') +
+      (anyEdit ? '<button class="resetOrder planReset" data-reset type="button">Reset to suggested plan</button>' : "");
   }
   function emptyHTML() {
     return '<div class="card emptyState">' + HOUSE + "<p>No showings. Add homes to Shows before Hoes.</p></div>";
@@ -393,28 +532,42 @@
     var el = $("#tab-showings");
     if (!state.showings) { el.innerHTML = unlockHTML(); bindUnlock(); return; }
     var g = dayGroups(), html = "";
-    var open = state.dayId ? findDay(state.dayId) : null;
-    if (open && isPast(open) && open.status !== "Proposed") {
+    var open = state.dayId && state.dayId !== "plan" ? findDay(state.dayId) : null;
+    if (open && isPast(open)) {
       html = '<button class="backLink" id="backBtn">‹ Showings</button>' + dayView(open);
     } else {
-      var active = g.upcoming.slice(); if (g.proposed) active.push(g.proposed);
-      if (!active.length) html = emptyHTML();
+      var active = g.upcoming.slice(), hasPlan = g.proposed.length > 0;
+      if (!active.length && !hasPlan) html = emptyHTML();
       else {
-        var cur = (open && active.indexOf(open) >= 0) ? open : active[0];
-        var chips = active.length > 1 ? '<div class="dayChips">' + active.map(function (d) { return '<button class="chip' + (d === cur ? " on" : "") + (d.status === "Proposed" ? " prop" : "") + '" data-day="' + esc(d.id) + '">' + esc(d.label || d.date) + "</button>"; }).join("") + "</div>" : "";
-        html = chips + dayView(cur);
+        var cur = open && active.indexOf(open) >= 0 ? open : state.dayId === "plan" && hasPlan ? "plan" : active[0] || "plan";
+        var chips = active.length && hasPlan || active.length > 1 ? '<div class="dayChips">' + active.map(function (d) { return '<button class="chip' + (d === cur ? " on" : "") + '" data-day="' + esc(d.id) + '">' + esc(d.label || d.date) + "</button>"; }).join("") +
+          (hasPlan ? '<button class="chip prop' + (cur === "plan" ? " on" : "") + '" data-day="plan">Plan</button>' : "") + "</div>" : "";
+        html = chips + (cur === "plan" ? planHTML(g.proposed) : dayView(cur));
       }
       html += pastHTML(g.past);
     }
     el.innerHTML = html;
-    $$("[data-view]", el).forEach(function (b) { b.onclick = function () { state.view = b.dataset.view; localStorage.setItem(VIEW_STORE, state.view); renderShowings(); window.scrollTo({ top: 0 }); }; });
+    $$("[data-view]", el).forEach(function (b) { b.onclick = function () {
+      if (b.dataset.vkey === "d") { state.view = b.dataset.view; localStorage.setItem(VIEW_STORE, state.view); } else state.viewBy[b.dataset.vkey] = b.dataset.view;
+      var sec = b.closest(".pday"), top = sec ? sec.getBoundingClientRect().top + window.scrollY - 70 : 0;
+      renderShowings(); window.scrollTo({ top: Math.max(0, top) }); }; });
     $$("[data-day]", el).forEach(function (b) { b.onclick = function () { state.dayId = b.dataset.day; renderShowings(); window.scrollTo({ top: 0 }); }; });
     var bk = $("#backBtn", el); if (bk) bk.onclick = function () { state.dayId = null; renderShowings(); window.scrollTo({ top: 0 }); };
     var pd = $("details.past", el); if (pd) pd.addEventListener("toggle", function () { state.pastOpen = pd.open; });
     $$(".thumb img", el).forEach(queueImg);
-    var cb = $("#cartBtn", el); if (cb && state.serverProposal) cb.onclick = function () { sendCart(applyOrder(state.serverProposal), cb); };
-    var ro = $("#resetOrder", el); if (ro) ro.onclick = function () { localStorage.removeItem(ORDER_PREFIX + state.serverProposal.date); renderShowings(); };
-    if ($(".proposedStop", el)) bindReorder(el, applyOrder(state.serverProposal));
+    var days = {}; g.proposed.forEach(function (d) { days[d.date] = d; });
+    $$(".pday", el).forEach(function (sec) {
+      var day = days[sec.dataset.date]; if (!day) return;
+      $$("[data-cart]", sec).forEach(function (b) { b.onclick = function () {
+        var k = b.dataset.cart;
+        if (k === "send" || k === "update") sendCart(day, b, b.textContent);
+        else if (k === "sent") cartAction(day, "cart_sent", "Marked as sent");
+        else if (k === "uncart") cartAction(day, "uncart", "Cart undone");
+      }; });
+      var di = $(".dateEdit input", sec); if (di) di.onchange = function () { setDayDate(day.date, di.value); };
+      if ($(".proposedStop", sec)) bindReorder(sec, day);
+    });
+    $$("[data-reset]", el).forEach(function (b) { b.onclick = function () { clearTimeout(planTimer); localStorage.removeItem(PLAN_STORE); renderShowings(); if (hookCfg() && state.planPosted) queuePlanPost(); }; });
   }
   function bindUnlock() {
     var f = $("#unlockForm"); if (!f) return;
@@ -560,7 +713,7 @@
     var saveBtn = saved ? btn(item.url, "Open in Zillow", IC.z, true)
       : '<button class="btn primary saveBtn" type="button" data-save="' + esc(item.zpid) + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "<span>" + (pending ? "Saving…" : "Save") + "</span></button>";
     return '<article class="card home" data-id="' + esc(cardId(item)) + '">' + carousel(item) + '<div class="hb"><div class="date">' + esc(item.headline || "") + (item.headline ? " · " : "") + esc(fmtDate(item.date)) + "</div>" +
-      '<div class="addr">' + esc(item.address) + '</div><div class="city">' + esc(item.city) + (item.area ? " · " + esc(item.area) : "") + "</div>" +
+      '<div class="addr">' + esc(item.address) + '</div><div class="city">' + esc(item.city) + (item.area ? " · " + esc(item.area) : "") + typeTag(item) + "</div>" +
       '<div class="prow">' + prow + '</div><div class="tiles">' + tiles + '</div><div class="facts">' + facts + "</div>" + hist +
       (item.note ? '<div class="note">' + esc(item.note) + "</div>" : "") +
       '<div class="btns">' + saveBtn + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + "</div></div></article>";

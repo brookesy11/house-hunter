@@ -381,3 +381,29 @@ td a{color:var(--brandDeep);font-weight:600}
 .hookBtn{padding:8px 16px;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;font-size:14px}
 .hookBtn.ghost{background:var(--btn);color:var(--text)}
 #hookStatus{font-size:13px;color:var(--text2)}
+
+a.cartBtn{display:flex}
+.cartBtn:disabled{cursor:default}
+
+.sTime{flex-wrap:wrap;row-gap:4px}
+.sTime .n{flex-shrink:0}
+.sTime .tt{white-space:nowrap}
+.sTime .tag{font-size:10.5px;padding:2px 7px}
+
+/* showing type tag (Go & Show / Appt) */
+.tTag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font-size:10.5px;font-weight:700;line-height:15px;vertical-align:1px;background:#e6f4ea;color:#137333;white-space:nowrap}
+.tTag.appt{background:#eef0f3;color:#5f6368}
+.city .tTag{margin-left:8px}
+/* multi-day plan */
+.dayGap{height:22px}
+.dRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dRow .sDrive{flex:1;min-width:0}
+.moveTo{position:relative;flex-shrink:0;font-size:12px;font-weight:600;color:var(--text2);padding:4px 2px 4px 8px}
+.moveTo::after{content:" ›"}
+.moveTo select{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px}
+.dateEdit{position:relative;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.dateEdit i{font-style:normal;font-size:11px;color:var(--text2)}
+.dateEdit input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px}
+.cartLinks{display:flex;justify-content:center;gap:18px;margin-top:10px}
+.cartLinks a,.cartLinks button{background:none;border:0;padding:2px;font:inherit;font-size:12.5px;font-weight:600;color:var(--text2);text-decoration:none}
+.planReset{display:block;margin:14px auto 0}
