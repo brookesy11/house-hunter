@@ -254,29 +254,51 @@
     }, 4000);
   }
   function bindReorder(sec, day) {
-    var list = $(".stack", sec); if (!list) return;
-    var order = function () { return $$(".proposedStop", list).map(function (c) { return c.dataset.zpid; }); };
-    var commit = function () { var o = order(); if (o.join() !== zps(day).join()) reorderDay(day.date, o); };
-    $$(".mv", list).forEach(function (b) { b.onclick = function (e) {
-      e.stopPropagation(); var c = b.closest(".proposedStop"), sib = b.dataset.d === "up" ? c.previousElementSibling : c.nextElementSibling;
-      if (!sib) return; if (b.dataset.d === "up") list.insertBefore(c, sib); else list.insertBefore(sib, c); commit(); }; });
-    $$(".grip", list).forEach(function (g) {
-      var card = g.closest(".proposedStop"), timer = null, drag = false, y0 = 0, pid = null;
-      var start = function () { drag = true; card.classList.add("dragging"); list.classList.add("sorting"); if (navigator.vibrate) navigator.vibrate(10); };
-      g.addEventListener("pointerdown", function (e) { pid = e.pointerId; y0 = e.clientY; g.setPointerCapture(pid); timer = setTimeout(start, e.pointerType === "mouse" ? 0 : 220); });
-      g.addEventListener("pointermove", function (e) {
-        if (!drag) { if (Math.abs(e.clientY - y0) > 8) clearTimeout(timer); return; }
-        e.preventDefault(); card.style.transform = "translateY(" + (e.clientY - y0) + "px)";
-        var mid = card.getBoundingClientRect(), cy = mid.top + mid.height / 2;
-        var prev = card.previousElementSibling, next = card.nextElementSibling;
-        if (prev && cy < prev.getBoundingClientRect().top + prev.offsetHeight / 2) { list.insertBefore(card, prev); y0 -= prev.offsetHeight + 14; card.style.transform = "translateY(" + (e.clientY - y0) + "px)"; }
-        else if (next && cy > next.getBoundingClientRect().top + next.offsetHeight / 2) { list.insertBefore(next, card); y0 += next.offsetHeight + 14; card.style.transform = "translateY(" + (e.clientY - y0) + "px)"; }
+    var list = $(".s2List", sec); if (!list) return;
+    var cards = function () { return $$(".proposedStop", list); };
+    var commit = function () { var o = cards().map(function (c) { return c.dataset.zpid; }); if (o.join() !== zps(day).join()) reorderDay(day.date, o); };
+    $$(".s2Menu select", list).forEach(function (sel) { sel.onchange = function () {
+      var v = sel.value, z = sel.dataset.zpid; sel.selectedIndex = 0;
+      if (v === "up" || v === "down") { var o = zps(day), i = o.indexOf(z), j = v === "up" ? i - 1 : i + 1; if (j < 0 || j >= o.length) return; o.splice(i, 1); o.splice(j, 0, z); reorderDay(day.date, o); }
+      else if (v) moveStop(z, day.date, v);
+    }; });
+    var skip = function (t) { return t.closest("a, button, select, label, details, input"); };
+    cards().forEach(function (card) {
+      var timer = null, drag = false, y0 = 0, x0 = 0;
+      var begin = function () { drag = true; state.dragging = true; card.classList.add("dragging"); list.classList.add("sorting"); if (navigator.vibrate) navigator.vibrate(10); };
+      var swap = function (a, b) { var t = document.createElement("i"); a.replaceWith(t); b.replaceWith(a); t.replaceWith(b); };
+      var move = function (y) {
+        card.style.transform = "translateY(" + (y - y0) + "px)";
+        var cs = cards(), i = cs.indexOf(card), r = card.getBoundingClientRect(), cy = r.top + r.height / 2;
+        var nb = cy < (cs[i - 1] ? cs[i - 1].getBoundingClientRect().top + cs[i - 1].offsetHeight / 2 : -1e9) ? cs[i - 1] :
+                 cy > (cs[i + 1] ? cs[i + 1].getBoundingClientRect().top + cs[i + 1].offsetHeight / 2 : 1e9) ? cs[i + 1] : null;
+        if (!nb) return;
+        var before = card.offsetTop; swap(card, nb); y0 += card.offsetTop - before;
+        card.style.transform = "translateY(" + (y - y0) + "px)";
+      };
+      var finish = function () {
+        clearTimeout(timer); if (!drag) return; drag = false;
+        card.style.transform = ""; card.classList.remove("dragging"); list.classList.remove("sorting");
+        setTimeout(function () { state.dragging = false; }, 60); commit();
+      };
+      card.addEventListener("touchstart", function (e) { if (skip(e.target)) return; y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; clearTimeout(timer); timer = setTimeout(begin, 380); }, { passive: true });
+      card.addEventListener("touchmove", function (e) {
+        var t = e.touches[0];
+        if (!drag) { if (Math.abs(t.clientY - y0) > 8 || Math.abs(t.clientX - x0) > 8) clearTimeout(timer); return; }
+        if (e.cancelable) e.preventDefault(); move(t.clientY);
+      }, { passive: false });
+      card.addEventListener("touchend", finish); card.addEventListener("touchcancel", finish);
+      card.addEventListener("contextmenu", function (e) { if (drag || timer) e.preventDefault(); });
+      card.addEventListener("mousedown", function (e) {
+        if (e.button || skip(e.target) || "ontouchstart" in window) return;
+        y0 = e.clientY; x0 = e.clientX; clearTimeout(timer); timer = setTimeout(begin, 380);
+        var mm = function (ev) { if (!drag) { if (Math.abs(ev.clientY - y0) > 8 || Math.abs(ev.clientX - x0) > 8) clearTimeout(timer); return; } ev.preventDefault(); move(ev.clientY); };
+        var mu = function () { document.removeEventListener("mousemove", mm); document.removeEventListener("mouseup", mu); finish(); };
+        document.addEventListener("mousemove", mm); document.addEventListener("mouseup", mu);
       });
-      var end = function () { clearTimeout(timer); if (!drag) return; drag = false; card.style.transform = ""; card.classList.remove("dragging"); list.classList.remove("sorting"); commit(); };
-      g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
     });
-    $$(".moveTo select", list).forEach(function (sel) { sel.onchange = function () { var v = sel.value; sel.value = ""; if (v) moveStop(sel.dataset.zpid, day.date, v); }; });
   }
+
 
   /* ---------- ShowingTime cart, one tour per proposed day ----------
      server: data.carts[date] = {status: in_cart|sent|done, url, at, date, stops:[{zpid,start,end}]} (what is really in the cart).
@@ -386,27 +408,49 @@
     if (!(s.rating || s.notes)) return "";
     return '<div class="take">' + (s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "☆".repeat(5 - s.rating) + "</span>" : "") + (s.notes ? "<p>" + esc(s.notes) + "</p>" : "") + "</div>";
   }
-  function seenStopCard(s) {
-    var pill = s.feedbackDone ? '<span class="tag green">Feedback sent</span>' : '<span class="tag">Seen</span>';
-    var fb = s.feedbackUrl && !s.feedbackDone ? '<a class="btn primary feedbackBtn" href="' + esc(s.feedbackUrl) + '" target="_blank" rel="noopener noreferrer">' + IC.doc + "<span>Leave feedback</span></a>" : "";
-    return '<article class="card stop seenStop">' + head(s, "", pill, true) + fb + take(s) +
-      '<div class="btns one">' + btn(s.zillow, "Zillow", IC.z) + "</div>" + accessInfo(s) + "</article>";
-  }
+  /* ---------- stop cards: hero photo, number + time on the photo, address + price, stats + type tag, slim actions ---------- */
   var dLabel = function (iso) { return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
+  var sb = function (href, label, icon, primary, ext) {
+    if (!href) return "";
+    var x = ext === false ? "" : /^https?:/.test(href) ? ' target="_blank" rel="noopener noreferrer"' : "";
+    return '<a class="sb' + (primary ? " pri" : "") + (label ? "" : " ico") + '" href="' + esc(href) + '"' + x + (label ? "" : ' aria-label="Zillow"') + ">" + icon + (label ? "<span>" + esc(label) + "</span>" : "") + "</a>";
+  };
+  var DOTS = '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>';
+  function card2(s, o) {
+    var street = String(s.address || "").split(",")[0], town = s.city || String(s.address || "").split(",")[1] || "";
+    var stats = [String(town).trim(), basics(s, o.built)].filter(Boolean).join(" · ");
+    var img = s.photo ? '<img class="s2Img" data-src="' + esc(cardSize(s.photo)) + '" data-pri="0" alt="" draggable="false">' : '<div class="s2None">' + HOUSE + "</div>";
+    var when = o.time ? '<span class="s2When"><b' + (o.green ? ' class="g"' : "") + ">" + esc(s.n) + "</b>" + esc(o.time) + "</span>" : "";
+    return '<article class="card stop2' + (o.cls ? " " + o.cls : "") + '" data-zpid="' + esc(s.zpid || s.address) + '">' +
+      '<div class="s2Hero">' + img + '<div class="s2Over">' + when + (o.pills || "") + "</div>" + (o.menu || "") + (o.noType ? "" : '<div class="s2Type">' + typeTag(s) + "</div>") + "</div>" +
+      '<div class="s2Body"><div class="s2Line"><span class="s2Addr">' + esc(street) + "</span>" + (s.price ? '<b class="s2Price">' + short$(s.price) + "</b>" : "") + "</div>" +
+      '<div class="s2Stats">' + esc(stats) + "</div>" + (o.extra || "") +
+      (o.actions ? '<div class="s2Act">' + o.actions + "</div>" : "") + "</div></article>";
+  }
+  var legTxt = function (t) { return String(t || "").replace(/ · [\d.]+ mi/, "").replace(/ from .*/, ""); };
+  function leg(s, i) {
+    var t = legTxt(s.drive || s.navFrom); if (!t) return "";
+    return '<div class="s2Leg">' + (i === 0 ? '<span class="lh">' + HOUSE + "</span>" : "<i></i>") + "<span>" + esc(t) + "</span></div>";
+  }
+  function seenStopCard(s) {
+    var pill = s.feedbackDone ? '<span class="s2Pill green">Feedback sent</span>' : '<span class="s2Pill">Seen</span>';
+    var fb = s.feedbackUrl && !s.feedbackDone ? sb(s.feedbackUrl, "Leave feedback", IC.doc, true) : "";
+    return card2(s, { cls: "seen", pills: pill, noType: true, built: true, extra: take(s) + accessInfo(s), actions: fb + sb(s.zillow, fb ? "" : "Zillow", IC.z) });
+  }
   function proposedStopCard(s, day, ctx) {
     ctx = ctx || {};
     var ct = "";
     if (ctx.cart && ctx.cart.inCart && ctx.cart.sc.stops) {   /* plan vs cart, only where they differ */
       var c = ctx.cart.sc.stops.filter(function (x) { return String(x.zpid) === String(s.zpid); })[0];
-      ct = !c ? ' <span class="tag">Not in cart</span>' : parseT(c.start) !== s.startMin ? ' <span class="tag">Cart ' + esc(fmtS(parseT(c.start))) + "</span>" : "";
+      ct = !c ? '<span class="s2Pill">Not in cart</span>' : parseT(c.start) !== s.startMin ? '<span class="s2Pill">Cart ' + esc(fmtS(parseT(c.start))) + "</span>" : "";
     }
-    if (ctx.locked) return '<article class="card stop">' + head(s, '<i class="n p">' + esc(s.n) + '</i><span class="tt">' + esc(s.time) + '</span> <span class="tag amber">Requested</span>') +
-      driveLine(s.drive ? s.drive.replace(/ · [\d.]+ mi/, "") : "") + '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(s.zillow, "Zillow", IC.z) + "</div></article>";
-    var opts = (ctx.others || []).map(function (d) { return '<option value="' + esc(d) + '">' + esc(dLabel(d)) + "</option>"; }).join("") + '<option value="new">New day</option>';
-    var mv = '<label class="moveTo">Move<select data-zpid="' + esc(s.zpid) + '" aria-label="Move to another day"><option value="">Move to…</option>' + opts + "</select></label>";
-    return '<article class="card stop proposedStop" data-zpid="' + esc(s.zpid) + '">' + '<div class="mvBox"><button class="mv" data-d="up" type="button" aria-label="Move up">▴</button><span class="grip" aria-label="Drag to reorder">⋮⋮</span><button class="mv" data-d="down" type="button" aria-label="Move down">▾</button></div>' + head(s, '<i class="n p">' + esc(s.n) + '</i><span class="tt">' + esc(s.time) + "</span>" + ct) +
-      '<div class="dRow">' + driveLine(s.drive ? s.drive.replace(/ · [\d.]+ mi/, "") : "") + mv + "</div>" +
-      '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(s.zillow, "Zillow", IC.z) + "</div></article>";
+    var acts = sb(s.nav, "Navigate", IC.nav, true) + sb(s.zillow, "", IC.z);
+    if (ctx.locked) return card2(s, { time: s.time, pills: '<span class="s2Pill amber">Requested</span>', actions: acts });
+    var zo = zps(day).map(String), zi = zo.indexOf(String(s.zpid));
+    var opts = (zi > 0 ? '<option value="up">Move up</option>' : "") + (zi > -1 && zi < zo.length - 1 ? '<option value="down">Move down</option>' : "") +
+      (ctx.others || []).map(function (d) { return '<option value="' + esc(d) + '">Move to ' + esc(dLabel(d)) + "</option>"; }).join("") + '<option value="new">Move to new day</option>';
+    var menu = '<label class="s2Menu" aria-label="Options">' + DOTS + '<select data-zpid="' + esc(s.zpid) + '"><option value="" disabled selected>Options</option>' + opts + "</select></label>";
+    return card2(s, { cls: "proposedStop", time: s.time, pills: ct, menu: menu, actions: acts });
   }
   function stopCard(s, day, ctx) {
     if (s.proposed) return proposedStopCard(s, day, ctx);
@@ -414,12 +458,16 @@
     var isDoor = /door/i.test(s.code || ""), code = String(s.code || "").replace(/\s*\(door code\)/i, "");
     var tel = s.phone ? "tel:" + String(s.phone).replace(/[^0-9+]/g, "") : "";
     var pend = s.confirmed === false;
-    return '<article class="card stop">' + head(s, '<i class="n' + (pend ? " p" : "") + '">' + esc(s.n) + '</i><span class="tt">' + esc(s.time) + "</span>" + (pend ? ' <span class="tag amber">Requested</span>' : "")) +
-      driveLine(s.navFrom) +
-      (code ? '<div class="codeRow"><span>' + (isDoor ? "Door code" : "Lockbox") + '</span><b>' + esc(code) + "</b></div>" : "") +
-      (s.flag ? '<div class="flag">' + esc(s.flag) + "</div>" : "") +
-      (s.instructions ? '<div class="door">' + esc(s.instructions) + "</div>" : "") + take(s) +
-      '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(tel, "Call agent", IC.call) + btn(s.zillow, "Zillow", IC.z) + btn(s.confirmUrl, "Edit showing", IC.doc) + btn(s.feedbackUrl, "Leave feedback", IC.doc) + "</div></article>";
+    var extra = (code ? '<div class="codeRow"><span>' + (isDoor ? "Door code" : "Lockbox") + '</span><b>' + esc(code) + "</b></div>" : "") +
+      (s.flag ? '<div class="flag">' + esc(s.flag) + "</div>" : "") + (s.instructions ? '<div class="door">' + esc(s.instructions) + "</div>" : "") + take(s);
+    return card2(s, { time: s.time, green: !pend, pills: pend ? '<span class="s2Pill amber">Requested</span>' : "", extra: extra,
+      actions: sb(s.nav, "Navigate", IC.nav, true) + sb(tel, "Call", IC.call, false, false) + sb(s.confirmUrl, "Edit", IC.doc) + sb(s.feedbackUrl, "Feedback", IC.doc) + sb(s.zillow, "", IC.z) });
+  }
+  function stopsHTML(day, ctx) {
+    return '<div class="stack s2List">' + day.showings.map(function (s, i) {
+      var seen = !s.proposed && isSeen(s, day);
+      return (seen ? "" : leg(s, i)) + stopCard(s, day, ctx);
+    }).join("") + "</div>";
   }
   function mapSVG(m) {
     if (!m) return "";
@@ -496,7 +544,7 @@
     if (view === "map") body = routeHTML(day);
     else if (view === "compare") body = compareHTML(day);
     else if (view === "details") body = detailsHTML(day);
-    else body = '<div class="stack" style="margin-top:12px">' + day.showings.map(function (s) { return stopCard(s, day, { others: ctx.others, cart: ci, locked: locked }); }).join("") + "</div>";
+    else body = stopsHTML(day, { others: ctx.others, cart: ci, locked: locked });
     var badge = prop ? (locked ? '<span class="tag amber">Sent</span>' : ci.inCart ? '<span class="tag amber">In cart</span>' : '<span class="tag amber">Proposed</span>') : past || allSeen ? '<span class="tag">Done</span>' : "";
     var cart = "";
     if (prop && !locked) {
@@ -554,7 +602,7 @@
     $$("[data-day]", el).forEach(function (b) { b.onclick = function () { state.dayId = b.dataset.day; renderShowings(); window.scrollTo({ top: 0 }); }; });
     var bk = $("#backBtn", el); if (bk) bk.onclick = function () { state.dayId = null; renderShowings(); window.scrollTo({ top: 0 }); };
     var pd = $("details.past", el); if (pd) pd.addEventListener("toggle", function () { state.pastOpen = pd.open; });
-    $$(".thumb img", el).forEach(queueImg);
+    $$(".thumb img, .s2Img", el).forEach(queueImg);
     var days = {}; g.proposed.forEach(function (d) { days[d.date] = d; });
     $$(".pday", el).forEach(function (sec) {
       var day = days[sec.dataset.date]; if (!day) return;
@@ -567,6 +615,9 @@
       var di = $(".dateEdit input", sec); if (di) di.onchange = function () { setDayDate(day.date, di.value); };
       if ($(".proposedStop", sec)) bindReorder(sec, day);
     });
+    $$(".stop2", el).forEach(function (c) { c.onclick = function (e) {
+      if (state.dragging || e.target.closest("a, button, select, label, details, input, .codeRow")) return;
+      var hit = stopByZ(c.dataset.zpid); if (hit) openDetail(hit, true); }; });
     $$("[data-reset]", el).forEach(function (b) { b.onclick = function () { clearTimeout(planTimer); localStorage.removeItem(PLAN_STORE); renderShowings(); if (hookCfg() && state.planPosted) queuePlanPost(); }; });
   }
   function bindUnlock() {
@@ -677,16 +728,26 @@
   }
 
   /* ---------- alerts tab ---------- */
-  function carousel(item) {
-    var photos = (item.photos || []).map(function (p) { return typeof p === "string" ? { url: p } : p; }).filter(function (p) { return p && p.url; }).slice(0, 8);
-    var badge = item.kind === "drop" ? '<span class="badge drop">PRICE DROP</span>' : item.kind === "status" ? '<span class="badge status">' + esc((item.newStatus || "Status change").toUpperCase()) + "</span>" : '<span class="badge new">NEW</span>';
-    var x = '<button class="dismissX" type="button" aria-label="Dismiss" data-dismiss>✕</button>';
+  function carousel(item, bare) {
+    var photos = (item.photos || []).map(function (p) { return typeof p === "string" ? { url: p } : p; }).filter(function (p) { return p && p.url; }).slice(0, bare ? 24 : 8);
+    var badge = bare ? "" : item.kind === "drop" ? '<span class="badge drop">PRICE DROP</span>' : item.kind === "status" ? '<span class="badge status">' + esc((item.newStatus || "Status change").toUpperCase()) + "</span>" : '<span class="badge new">NEW</span>';
+    var x = bare ? "" : '<button class="dismissX" type="button" aria-label="Dismiss" data-dismiss>✕</button>';
     if (!photos.length) return '<div class="car">' + badge + x + "</div>";
     return '<div class="car" data-car>' + badge + x + '<span class="count">1 / ' + photos.length + "</span>" +
       '<div class="carTrack">' + photos.map(function (p, i) { return '<div class="ph"><img alt="' + esc(p.label || "Photo " + (i + 1)) + " · " + esc(item.address) + '" data-src="' + esc(cardSize(p.url)) + '" data-full="' + esc(fullSize(p.url)) + '" data-label="' + esc(p.label || "") + '" data-pri="' + (i === 0 ? 0 : i === 1 ? 1 : 2) + '" data-i="' + i + '" draggable="false">' + (p.label ? '<span class="phLabel">' + esc(p.label) + "</span>" : "") + "</div>"; }).join("") + "</div>" +
-      (photos.length > 1 ? '<button class="arrow left" type="button" aria-label="Previous photo" disabled>‹</button><button class="arrow right" type="button" aria-label="Next photo">›</button><div class="dots">' + photos.map(function (_, i) { return "<i" + (i === 0 ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : "") + "</div>";
+      (photos.length > 1 ? '<button class="arrow left" type="button" aria-label="Previous photo" disabled>‹</button><button class="arrow right" type="button" aria-label="Next photo">›</button>' + (photos.length <= 10 ? '<div class="dots">' + photos.map(function (_, i) { return "<i" + (i === 0 ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : "") : "") + "</div>";
   }
   function fmtDate(iso) { if (!iso) return ""; var d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }
+  function histHTML(h, kind) {
+    var hist = ""; h = h || [];
+    if (h.length >= 2) {
+      var base = h.filter(function (x) { return !x.sold; }), orig = (base[0] || h[0]).price, last = h[h.length - 1].price;
+      var note = last < orig ? money(orig - last) + " (" + ((orig - last) / orig * 100).toFixed(1) + "%) below original" : "";
+      hist = '<div class="hist"><div class="histH"><span>Price history</span><em>' + esc(note) + '</em></div><div class="track"><div class="line"></div>' +
+        h.map(function (x, i) { var cls = i === h.length - 1 ? (kind === "status" ? " pend" : " now") : ""; return '<div class="step' + cls + '"><div class="d"></div><div class="sp">' + (x.label ? esc(x.label) : short$(x.price)) + '</div><div class="sd">' + esc(x.date) + "</div></div>"; }).join("") + "</div></div>";
+    }
+    return hist;
+  }
   function homeCard(item) {
     var prow = '<span class="price">' + money(item.price) + "</span>";
     if (item.kind === "drop" && item.oldPrice) {
@@ -702,13 +763,7 @@
     var ppsf = item.ppsf || (item.price && item.sqft ? Math.round(item.price / item.sqft) : null);
     var facts = [["Built", [item.built, item.style].filter(Boolean).join(" · ")], ["HOA", item.hoa], ["Per sq ft", ppsf ? money(ppsf) : ""], ["On Zillow", item.dom != null ? item.dom + " days" : ""]]
       .filter(function (f) { return f[1]; }).map(function (f) { return '<div class="fact' + (f[0] === "Built" && String(f[1]).length > 16 ? " full" : "") + '"><span>' + f[0] + "</span><b>" + esc(f[1]) + "</b></div>"; }).join("");
-    var hist = "", h = item.history || [];
-    if (h.length >= 2) {
-      var orig = h[0].price, last = h[h.length - 1].price;
-      var note = last < orig ? money(orig - last) + " (" + ((orig - last) / orig * 100).toFixed(1) + "%) below original" : "";
-      hist = '<div class="hist"><div class="histH"><span>Price history</span><em>' + esc(note) + '</em></div><div class="track"><div class="line"></div>' +
-        h.map(function (x, i) { var cls = i === h.length - 1 ? (item.kind === "status" ? " pend" : " now") : ""; return '<div class="step' + cls + '"><div class="d"></div><div class="sp">' + (x.label ? esc(x.label) : short$(x.price)) + '</div><div class="sd">' + esc(x.date) + "</div></div>"; }).join("") + "</div></div>";
-    }
+    var hist = histHTML(item.history, item.kind);
     var saved = isSavedHome(item), pending = !saved && savingAt(item.zpid);
     var saveBtn = saved ? btn(item.url, "Open in Zillow", IC.z, true)
       : '<button class="btn primary saveBtn" type="button" data-save="' + esc(item.zpid) + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "<span>" + (pending ? "Saving…" : "Save") + "</span></button>";
@@ -741,6 +796,8 @@
         if (isDis) { setDismissed(getDismissed().filter(function (x) { return x !== id; })); renderAlerts(); toast("Restored"); } else dismissCard(id, card); }; });
       if (!isDis) bindSwipe(card);
     });
+    $$("article.home .addr, article.home .city", el).forEach(function (t) { t.classList.add("tapOpen"); t.onclick = function () {
+      var card = t.closest("article.home"), it = allItems.filter(function (i) { return cardId(i) === card.dataset.id; })[0]; if (it) openDetail(it, false); }; });
     $$("[data-save]", el).forEach(function (b) { b.onclick = function () { var it = allItems.filter(function (i) { return String(i.zpid) === b.dataset.save; })[0]; if (it) saveHome(it, b); }; });
     var sd = $("#showDis", el); if (sd) sd.onclick = function () { state.showDismissed = !state.showDismissed; renderAlerts(); };
     var rd = $("#restoreDis", el); if (rd) rd.onclick = function () { setDismissed([]); state.showDismissed = false; renderAlerts(); toast("Restored all"); };
@@ -763,6 +820,93 @@
       queueImg(img);
     });
   }
+
+  /* ---------- home detail sheet (mini listing page), shared by Showings stops and Alerts cards ---------- */
+  function alertFor(z) { return ((state.alerts && state.alerts.items) || []).filter(function (i) { return String(i.zpid) === String(z); }); }
+  function shortDate(iso) {
+    var m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return iso || "";
+    return +m[1] === new Date().getFullYear() ? +m[2] + "/" + +m[3] : +m[2] + "/" + m[1].slice(2);
+  }
+  function stopByZ(k) {
+    var all = planDays().concat((state.showings && state.showings.days) || []), hit = null;
+    all.forEach(function (d) { (d.showings || []).forEach(function (s) { if (!hit && (String(s.zpid) === k || s.address === k)) hit = s; }); });
+    return hit;
+  }
+  function detailData(src, isStop) {
+    var al = alertFor(src.zpid), drop = al.filter(function (i) { return i.kind === "drop"; })[0], any = drop || al[0] || {};
+    var L = src.listing || any.listing || {};
+    var addr = isStop ? String(src.address || "").split(",")[0] : src.address, city = isStop ? (src.cityFull || src.city || "") : src.city;
+    var photos = (L.photos && L.photos.length ? L.photos : any.photos && any.photos.length ? any.photos : src.photos || []).slice();
+    if (!photos.length && src.photo) photos = [src.photo];
+    var obs = (drop && drop.history) || src.history || [];
+    var hist = obs.length >= 2 ? obs : (L.history || []).map(function (x) { return { date: (x.label ? x.label + " · " : "") + shortDate(x.date), price: x.price, sold: /sold/i.test(x.label || "") }; });
+    var price = src.price || L.price, old = (drop && drop.oldPrice) || (L.priceChange ? price - L.priceChange : null);
+    return { zpid: src.zpid, address: addr, city: city, area: any.area, showType: src.showType || any.showType, price: price, oldPrice: old && old !== price ? old : null,
+      beds: src.beds || L.beds, baths: src.baths || L.baths, sqft: src.sqft || L.sqft, acres: src.acres || L.acres, built: src.built || L.built,
+      description: L.description || "", facts: L.facts || [], history: hist, photos: photos, status: L.status,
+      zillow: src.zillow || src.url || L.url || (src.zpid ? "https://www.zillow.com/homedetails/" + src.zpid + "_zpid/" : ""),
+      nav: mapsSearch(addr + ", " + city) };
+  }
+  function detailHTML(h) {
+    var prow = '<span class="price">' + (h.price ? money(h.price) : "") + "</span>";
+    if (h.oldPrice) {
+      var diff = h.oldPrice - h.price, pct = Math.abs(diff) / h.oldPrice * 100;
+      prow += '<span class="was">' + money(h.oldPrice) + '</span><span class="pill ' + (diff > 0 ? "red" : "green") + '">' + (diff > 0 ? "▼ " : "▲ ") + money(Math.abs(diff)) + " · " + pct.toFixed(1) + "%</span>";
+    }
+    var st = h.status && !/^for sale$/i.test(h.status) ? ' <span class="pill amber">' + esc(h.status) + "</span>" : "";
+    var tiles = [["Beds", h.beds], ["Baths", h.baths], ["Sq ft", h.sqft ? Number(h.sqft).toLocaleString() : null], ["Acres", h.acres], ["Built", h.built]]
+      .map(function (t) { return '<div class="tile"><b>' + esc(t[1] == null || t[1] === "" ? "—" : t[1]) + "</b><span>" + t[0] + "</span></div>"; }).join("");
+    var facts = h.facts.filter(function (f) { return f[0] !== "Per sq ft" || !h.price; }).map(function (f) { return '<div class="fact' + (String(f[1]).length > 16 ? " full" : "") + '"><span>' + esc(f[0]) + "</span><b>" + esc(f[1]) + "</b></div>"; }).join("");
+    var desc = h.description ? '<div class="dDesc clamp"><p>' + esc(h.description).replace(/\n+/g, "</p><p>") + '</p></div><button class="dMore" type="button">More</button>' : "";
+    return carousel({ photos: h.photos, address: h.address }, true) + '<div class="hb dBody"><div class="addr">' + esc(h.address) + "</div>" +
+      '<div class="city">' + esc(h.city) + (h.area ? " · " + esc(h.area) : "") + typeTag(h) + "</div>" +
+      '<div class="prow">' + prow + st + '</div><div class="tiles t5">' + tiles + "</div>" + desc +
+      (facts ? '<div class="facts">' + facts + "</div>" : "") + histHTML(h.history, null) +
+      '<div class="btns">' + btn(h.nav, "Navigate", IC.nav, true) + btn(h.zillow, "Open in Zillow", IC.z) + "</div></div>";
+  }
+  var D = null;
+  function openDetail(src, isStop) {
+    if (!D) {
+      D = document.createElement("div"); D.className = "dWrap"; D.hidden = true;
+      D.innerHTML = '<div class="dBg"></div><div class="dSheet" role="dialog" aria-modal="true" aria-label="Home details"><div class="dGrab"><i></i></div><button class="dClose" type="button" aria-label="Close">✕</button><div class="dScroll"></div></div>';
+      document.body.appendChild(D);
+      $(".dBg", D).onclick = closeDetail; $(".dClose", D).onclick = closeDetail;
+      bindDetailDrag();
+    }
+    var sc = $(".dScroll", D);
+    sc.innerHTML = detailHTML(detailData(src, isStop)); sc.scrollTop = 0;
+    $$("[data-car]", sc).forEach(bindCarousel);
+    var mb = $(".dMore", sc), dd = $(".dDesc", sc);
+    if (mb) requestAnimationFrame(function () { if (dd.scrollHeight <= dd.clientHeight + 4) { mb.remove(); dd.classList.remove("clamp"); } });
+    if (mb) mb.onclick = function () { dd.classList.remove("clamp"); mb.remove(); };
+    clearTimeout(D._t); D.hidden = false; document.body.classList.add("noScroll"); sc.scrollTop = 0;
+    var sh = $(".dSheet", D); sh.style.transform = ""; sh.classList.remove("closing");
+  }
+  function closeDetail() {
+    if (!D || D.hidden) return;
+    var sh = $(".dSheet", D); sh.classList.add("closing"); sh.style.transform = "translateY(100%)";
+    clearTimeout(D._t); D._t = setTimeout(function () { D.hidden = true; sh.classList.remove("closing"); sh.style.transform = ""; $(".dScroll", D).innerHTML = ""; document.body.classList.remove("noScroll"); }, 220);
+  }
+  /* swipe down to dismiss: from the grab bar anywhere, or from the content when it's scrolled to the top (vertical drags only) */
+  function bindDetailDrag() {
+    var sh = $(".dSheet", D), sc = $(".dScroll", D), y0 = null, x0 = 0, dy = 0, lock = null;
+    sh.addEventListener("touchstart", function (e) {
+      var onGrab = !!e.target.closest(".dGrab");
+      if (!onGrab && sc.scrollTop > 0) { y0 = null; return; }
+      y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; lock = onGrab ? "y" : null; sh.style.transition = "none";
+    }, { passive: true });
+    sh.addEventListener("touchmove", function (e) {
+      if (y0 == null) return; var my = e.touches[0].clientY - y0, mx = e.touches[0].clientX - x0;
+      if (lock == null && (Math.abs(my) > 8 || Math.abs(mx) > 8)) lock = my > 0 && Math.abs(my) > Math.abs(mx) * 1.3 ? "y" : "n";
+      if (lock !== "y") return;
+      dy = Math.max(0, my); if (e.cancelable) e.preventDefault(); sh.style.transform = "translateY(" + dy + "px)";
+    }, { passive: false });
+    sh.addEventListener("touchend", function () {
+      sh.style.transition = ""; if (y0 == null) return; y0 = null;
+      if (lock === "y" && dy > 110) closeDetail(); else sh.style.transform = "";
+    }, { passive: true });
+  }
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && D && !D.hidden && V.el.hidden) closeDetail(); });
 
   /* ---------- full-screen viewer ---------- */
   var V = { el: $("#viewer"), track: $("#vTrack"), n: 0 };
