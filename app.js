@@ -6,7 +6,7 @@
   var esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var money = function (n) { return "$" + Math.round(n).toLocaleString("en-US"); };
   var short$ = function (v) { return "$" + (v >= 1e6 ? (v / 1e6).toFixed(3).replace(/0+$/, "").replace(/\.$/, "") + "M" : Math.round(v / 1000) + "K"); };
-  var KEY_STORE = "hh.showingsKey.v1", TAB_STORE = "hh.tab", VIEW_STORE = "hh.view", FILTER_STORE = "hh.filter", SEEN_STORE = "hh.alertsSeen";
+  var KEY_STORE = "hh.showingsKey.v1", TAB_STORE = "hh.tab", VIEW_STORE = "hh.view", FILTER_STORE = "hh.filter", SEEN_STORE = "hh.alertsSeen", DISMISS_STORE = "hh.dismissed.v1";
   var GREEN = "#22a559", YELLOW = "#e8b923";
   var state = { tab: localStorage.getItem(TAB_STORE) || "showings", view: localStorage.getItem(VIEW_STORE) || "stops",
     filter: localStorage.getItem(FILTER_STORE) || "all", showings: null, dayId: null, alerts: null, enc: null, unlockError: "" };
@@ -24,7 +24,11 @@
     return '<a class="btn' + (primary ? " primary" : "") + '" href="' + esc(href) + '"' + (ext ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + (icon || "") + "<span>" + esc(label) + "</span></a>";
   };
   var mapsSearch = function (q) { return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(q) + "&travelmode=driving"; };
-  function toast(msg) { var t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 1800); }
+  function toast(msg, action, fn) {
+    var t = $("#toast"); t.innerHTML = ""; t.appendChild(document.createTextNode(msg));
+    if (action) { var b = document.createElement("button"); b.className = "toastBtn"; b.type = "button"; b.textContent = action; b.onclick = function () { t.hidden = true; fn(); }; t.appendChild(b); }
+    t.classList.toggle("act", !!action); t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, action ? 5000 : 1800);
+  }
   function fetchJSON(path) { return fetch(path + "?t=" + Date.now(), { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
 
   /* ---------- crypto ---------- */
@@ -51,23 +55,39 @@
       state.enc = enc;
       var raw = savedKey(enc);
       if (!raw) { state.showings = null; return; }
-      return decryptWith(raw, enc).then(function (data) { state.showings = data; state.unlockError = ""; })
+      if (state.showings && state.showingsCt === enc.ct) return;
+      return decryptWith(raw, enc).then(function (data) { state.showings = data; state.showingsCt = enc.ct; state.unlockError = ""; })
         .catch(function () { localStorage.removeItem(KEY_STORE); state.showings = null; state.unlockError = "The passcode changed. Enter the new one."; });
     }).catch(function () { state.enc = null; });
   }
   function loadAlerts() { return fetchJSON("data/alerts.json").then(function (a) { state.alerts = a; }).catch(function () { if (!state.alerts) state.alerts = { items: [] }; }); }
+  /* Only rebuild the DOM when the data really changed: rebuilding tore down <img>s mid-download on every app open. */
+  var lastSig = { s: null, a: null };
   function loadAll(manual) {
     var b = $("#refreshBtn"); b.classList.add("spin");
     return Promise.all([loadShowings(), loadAlerts()]).then(function () {
-      b.classList.remove("spin"); render(); if (manual) toast("Up to date");
+      b.classList.remove("spin");
+      var sSig = (state.enc ? state.enc.ct : "none") + "|" + (state.showings ? 1 : 0) + "|" + state.unlockError + "|" + todayISO();
+      var aSig = JSON.stringify(state.alerts || {});
+      if (sSig !== lastSig.s) { lastSig.s = sSig; renderShowings(); }
+      if (aSig !== lastSig.a) { lastSig.a = aSig; renderAlerts(); }
+      if (manual) toast("Up to date");
     });
   }
 
   /* ---------- showings tab ---------- */
-  function currentDay() {
-    var d = state.showings; if (!d || !d.days || !d.days.length) return null;
-    var id = state.dayId || d.currentDay;
-    return d.days.filter(function (x) { return x.id === id; })[0] || d.days[0];
+  function todayISO() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function isPast(day) { return day.status === "Completed" || (!!day.date && day.date < todayISO()); }
+  function dayGroups() {
+    var d = state.showings || {}, all = d.days || [];
+    var upcoming = all.filter(function (x) { return !isPast(x); }).sort(function (x, y) { return (x.date || "").localeCompare(y.date || ""); });
+    var past = all.filter(isPast).sort(function (x, y) { return (y.date || "").localeCompare(x.date || ""); });
+    return { upcoming: upcoming, past: past, proposed: d.proposed || null };
+  }
+  function findDay(id) {
+    var g = dayGroups();
+    if (id === "proposed") return g.proposed;
+    return g.upcoming.concat(g.past).filter(function (x) { return x.id === id; })[0] || null;
   }
   function unlockHTML() {
     var none = !state.enc;
@@ -78,7 +98,20 @@
       '<button class="btn primary" type="submit" id="unlockGo">Unlock</button></form><div class="err" id="unlockErr">' + esc(state.unlockError) + "</div>") +
       '<p class="fine">Codes and access details are encrypted on the server and only decrypted on your device.</p></div>';
   }
+  function proposedStopCard(s) {
+    var tiles = [["Beds", s.beds], ["Baths", s.baths], ["Sq ft", s.sqft ? Number(s.sqft).toLocaleString() : null], ["Acres", s.acres]]
+      .map(function (t) { return '<div class="tile"><b>' + esc(t[1] == null || t[1] === "" ? "—" : t[1]) + "</b><span>" + t[0] + "</span></div>"; }).join("");
+    var extra = [s.built ? "Built " + s.built : "", s.style, s.hoa ? "HOA " + s.hoa : "", s.dom != null ? s.dom + " days on Zillow" : ""].filter(Boolean).join(" · ");
+    return '<article class="card stop proposedStop">' +
+      '<div class="stopHead"><div class="num pending">' + esc(s.n) + '</div><div style="flex:1;min-width:0"><div class="stopTime">' + esc(s.time) + ' <span class="sugg">suggested</span></div><div class="stopAddr">' + esc(s.address) + "</div></div>" +
+      '<span class="pill amber">Proposed</span></div>' +
+      (s.drive ? '<div class="driveLine">' + IC.nav + "<span>" + esc(s.drive) + "</span></div>" : "") +
+      '<div class="codeBox"><div><div class="lbl">Price</div><div class="code pPrice">' + (s.price ? money(s.price) : "—") + '</div></div><div class="priceR"><small>Not requested yet</small><small>Code comes with confirmation</small></div></div>' +
+      '<div class="tiles">' + tiles + "</div>" + (extra ? '<div class="basics">' + esc(extra) + "</div>" : "") +
+      '<div class="btns">' + btn(s.nav, "Navigate", IC.nav, true) + btn(s.zillow, "Zillow", IC.z) + "</div></article>";
+  }
   function stopCard(s) {
+    if (s.proposed) return proposedStopCard(s);
     var isDoor = /door/i.test(s.code || "");
     var code = String(s.code || "").replace(/\s*\(door code\)/i, "");
     var rating = s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "☆".repeat(5 - s.rating) + "</span>" : "";
@@ -98,11 +131,13 @@
   function mapSVG(m) {
     if (!m) return "";
     var halo = 'paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"', font = 'font-family="Roboto, Arial, sans-serif"';
-    var o = '<svg viewBox="0 0 560 410" role="img" aria-label="Route map"><rect width="560" height="410" fill="#f5f2ea"/>' +
-      '<path d="' + m.reservoir + '" fill="#aad3f5"/>' +
+    var o = '<svg viewBox="0 0 560 410" role="img" aria-label="Route map"><rect width="560" height="410" fill="#f5f2ea"/>';
+    if (m.image) o += '<image href="' + esc(m.image) + '" x="0" y="0" width="560" height="410" preserveAspectRatio="none"/>';
+    if (m.reservoir) o += '<path d="' + m.reservoir + '" fill="#aad3f5"/>' +
       '<path d="' + m.primary + '" fill="none" stroke="#d6d1c4" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="' + m.primary + '" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>' +
       '<path d="' + m.trunk + '" fill="none" stroke="#e8c35a" stroke-width="3.5" stroke-linejoin="round"/><path d="' + m.trunk + '" fill="none" stroke="#fde293" stroke-width="2.2" stroke-linejoin="round"/>' +
       '<path d="' + m.motorway + '" fill="none" stroke="#e0a33a" stroke-width="4.5" stroke-linejoin="round"/><path d="' + m.motorway + '" fill="none" stroke="#fbc35d" stroke-width="3" stroke-linejoin="round"/>';
+    if (m.attribution) o += '<text x="554" y="404" text-anchor="end" font-size="8" fill="#555" ' + font + " " + halo + ">" + esc(m.attribution) + "</text>";
     (m.towns || []).forEach(function (t) { o += '<text x="' + t[1] + '" y="' + t[2] + '" text-anchor="middle" font-size="10" fill="#5f6368" ' + font + " " + halo + ">" + esc(t[0]) + "</text>"; });
     (m.legs || []).forEach(function (l) { o += '<polyline points="' + l.path + '" fill="none" stroke="#1a2a9e" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="' + (l.ret ? 0.5 : 1) + '"/>'; });
     (m.legs || []).forEach(function (l) { o += '<polyline points="' + l.path + '" fill="none" stroke="' + (l.ret ? "#8fa0ff" : "#4a5cff") + '" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>'; });
@@ -134,8 +169,9 @@
   var a = function (href, label) { return href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + "</a>" : ""; };
   function compareHTML(day) {
     var rows = day.showings.map(function (s) {
-      return [esc(s.n + ". " + s.short), short$(s.price), "$" + Math.round(s.price / s.sqft), Number(s.sqft).toLocaleString(), esc(s.acres), esc(s.built), esc(s.beds + "/" + s.baths), esc(s.hoa), esc(s.style),
-        s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "</span>" + (s.notes ? "<br>" + esc(s.notes) : "") : esc(s.notes || "Not toured")];
+      var dash = function (v) { return v == null || v === "" ? "—" : esc(v); };
+      return [esc(s.n + ". " + s.short), s.price ? short$(s.price) : "—", s.price && s.sqft ? "$" + Math.round(s.price / s.sqft) : "—", s.sqft ? Number(s.sqft).toLocaleString() : "—", dash(s.acres), dash(s.built), esc((s.beds || "—") + "/" + (s.baths || "—")), dash(s.hoa), dash(s.style),
+        s.rating ? '<span class="stars">' + "★".repeat(s.rating) + "</span>" + (s.notes ? "<br>" + esc(s.notes) : "") : esc(s.notes || (s.proposed ? "Proposed" : "Not toured"))];
     });
     return '<div class="secHead"><h2>Side by side</h2></div><p class="caption">' + esc(day.compareCaption || "") + "</p>" +
       table(["Home", "Price", "$/sq ft", "Sq ft", "Acres", "Built", "Bd/Ba", "HOA", "Style", "Your take"], rows, ["", "r", "r", "r", "r", "r", "r", "mid", "mid", "wide"]);
@@ -147,23 +183,53 @@
     return '<div class="secHead"><h2>All confirmation details</h2></div>' +
       table(["Home", "Date", "Time", "Lockbox code", "MLS", "Access", "Instructions", "Listing agent", "Confirmation", "Zillow"], rows, ["", "nw", "nw", "ok nw", "nw", "wide", "wide", "mid", "nw", "nw"]);
   }
+  function dayView(day) {
+    var metrics = (day.metrics || []).map(function (m) { return '<div class="metric"><b>' + esc(m.value) + "</b><span>" + esc(m.label) + "</span>" + (m.detail ? "<em>" + esc(m.detail) + "</em>" : "") + "</div>"; }).join("");
+    var prop = day.status === "Proposed", past = !prop && isPast(day);
+    var views = [["stops", "Stops"], ["map", "Route"], ["compare", "Compare"]].concat(prop ? [] : [["details", "All details"]]);
+    var view = state.view === "details" && prop ? "stops" : state.view;
+    var body = "";
+    if (view === "map") body = routeHTML(day);
+    else if (view === "compare") body = compareHTML(day);
+    else if (view === "details") body = detailsHTML(day);
+    else body = '<div class="secHead"><h2>Stops</h2><span>' + day.showings.length + ' home' + (day.showings.length === 1 ? "" : "s") + '</span></div><p class="caption">' + esc(day.stopsCaption || "") + '</p><div class="stack">' + day.showings.map(stopCard).join("") + "</div>";
+    var badge = prop ? '<span class="pill amber big">Proposed</span>' : past ? '<span class="pill grey big">Completed</span>' : '<span class="pill green big">Scheduled</span>';
+    var sum = prop ? "Not booked yet · start and end at home · " + (day.minutesPerHome || 30) + " min per home" : "Start and end at home · 30 min per home";
+    var note = prop ? '<div class="propNote"><b>Times are a suggestion.</b> Built from Shows before Hoes. Request these in ShowingTime; confirmed showings replace this proposal.</div>' : "";
+    return '<div class="card dayCard' + (prop ? " proposed" : "") + '"><div class="dayTop"><div><div class="dayTitle">' + esc(day.title) + '</div><div class="daySum">' + esc(sum) + "</div></div>" + badge + '</div><div class="metrics">' + metrics + "</div>" + note + "</div>" +
+      '<div class="seg" role="tablist" style="margin-top:14px">' + views.map(function (v) { return '<button data-view="' + v[0] + '" class="' + (view === v[0] ? "on" : "") + '">' + v[1] + "</button>"; }).join("") + "</div>" + body;
+  }
+  function emptyHTML() {
+    return '<div class="card emptyState"><div class="emptyIco"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>' +
+      "<h2>No showings scheduled</h2><p>Add homes to <b>Shows before Hoes</b> and I'll propose a route here.</p></div>";
+  }
+  function pastHTML(past) {
+    if (!past.length) return "";
+    return '<details class="past"' + (state.pastOpen ? " open" : "") + '><summary><span>Past showings</span><em>' + past.length + '</em><i class="chev">›</i></summary><div class="card links pastList">' +
+      past.map(function (d) { return '<button class="linkRow" data-day="' + esc(d.id) + '"><span class="mark">' + esc(String(d.showings.length)) + '</span><span><span class="t">' + esc(d.title) + '</span><br><span class="s">' + esc(d.showings.map(function (s) { return s.short; }).join(" · ")) + '</span></span><span class="go">›</span></button>'; }).join("") + "</div></details>";
+  }
   function renderShowings() {
     var el = $("#tab-showings");
-    var day = currentDay();
-    if (!day) { el.innerHTML = unlockHTML(); bindUnlock(); return; }
-    var days = state.showings.days;
-    var chips = days.length > 1 ? '<div class="dayChips">' + days.map(function (d) { return '<button class="chip' + (d.id === day.id ? " on" : "") + '" data-day="' + esc(d.id) + '">' + esc(d.label || d.date) + "</button>"; }).join("") + "</div>" : "";
-    var metrics = (day.metrics || []).map(function (m) { return '<div class="metric"><b>' + esc(m.value) + "</b><span>" + esc(m.label) + "</span>" + (m.detail ? "<em>" + esc(m.detail) + "</em>" : "") + "</div>"; }).join("");
-    var views = [["stops", "Stops"], ["map", "Route"], ["compare", "Compare"], ["details", "All details"]];
-    var body = "";
-    if (state.view === "map") body = routeHTML(day);
-    else if (state.view === "compare") body = compareHTML(day);
-    else if (state.view === "details") body = detailsHTML(day);
-    else body = '<div class="secHead"><h2>Stops</h2><span>' + day.showings.length + ' homes</span></div><p class="caption">' + esc(day.stopsCaption || "") + '</p><div class="stack">' + day.showings.map(stopCard).join("") + "</div>";
-    el.innerHTML = chips + '<div class="card dayCard"><div class="dayTop"><div><div class="dayTitle">' + esc(day.title) + '</div><div class="daySum">Start and end at home · 30 min per home</div></div></div><div class="metrics">' + metrics + "</div></div>" +
-      '<div class="seg" role="tablist" style="margin-top:14px">' + views.map(function (v) { return '<button data-view="' + v[0] + '" class="' + (state.view === v[0] ? "on" : "") + '">' + v[1] + "</button>"; }).join("") + "</div>" + body;
+    if (!state.showings) { el.innerHTML = unlockHTML(); bindUnlock(); return; }
+    var g = dayGroups(), html = "";
+    var open = state.dayId ? findDay(state.dayId) : null;
+    if (open && isPast(open) && open.status !== "Proposed") {
+      html = '<button class="backLink" id="backBtn">‹ Showings</button>' + dayView(open);
+    } else {
+      var active = g.upcoming.slice(); if (g.proposed) active.push(g.proposed);
+      if (!active.length) html = emptyHTML();
+      else {
+        var cur = (open && active.indexOf(open) >= 0) ? open : active[0];
+        var chips = active.length > 1 ? '<div class="dayChips">' + active.map(function (d) { return '<button class="chip' + (d === cur ? " on" : "") + (d.status === "Proposed" ? " prop" : "") + '" data-day="' + esc(d.id) + '">' + esc(d.label || d.date) + "</button>"; }).join("") + "</div>" : "";
+        html = chips + dayView(cur);
+      }
+      html += pastHTML(g.past);
+    }
+    el.innerHTML = html;
     $$("[data-view]", el).forEach(function (b) { b.onclick = function () { state.view = b.dataset.view; localStorage.setItem(VIEW_STORE, state.view); renderShowings(); window.scrollTo({ top: 0 }); }; });
-    $$("[data-day]", el).forEach(function (b) { b.onclick = function () { state.dayId = b.dataset.day; renderShowings(); }; });
+    $$("[data-day]", el).forEach(function (b) { b.onclick = function () { state.dayId = b.dataset.day; renderShowings(); window.scrollTo({ top: 0 }); }; });
+    var bk = $("#backBtn", el); if (bk) bk.onclick = function () { state.dayId = null; renderShowings(); window.scrollTo({ top: 0 }); };
+    var pd = $("details.past", el); if (pd) pd.addEventListener("toggle", function () { state.pastOpen = pd.open; });
   }
   function bindUnlock() {
     var f = $("#unlockForm"); if (!f) return;
@@ -181,13 +247,89 @@
     };
   }
 
+  /* ---------- robust photo loading ----------
+     iOS showed half-drawn photos: big 1536px JPEGs were cut off mid-download (the cards were rebuilt on every app open /
+     refresh, and flaky cellular), and Safari paints whatever bytes arrived. Now each photo is fetched in full (CORS is open on
+     photos.zillowstatic.com), checked against Content-Length, decoded, then faded in; a short/failed download retries once. */
+  var cardSize = function (u) { return String(u).replace(/-cc_ft_\d+\.(jpg|webp)$/, "-cc_ft_960.$1"); };
+  var fullSize = function (u) { return String(u).replace(/-cc_ft_\d+\.(jpg|webp)$/, "-cc_ft_1536.$1"); };
+  var blobCache = {}, inflight = {}, queue = [], active = 0, MAXC = 4;
+  function getBlobURL(url) {
+    if (blobCache[url]) return Promise.resolve(blobCache[url]);
+    if (inflight[url]) return inflight[url];
+    var attempt = function (n) {
+      return fetch(n ? url + (url.indexOf("?") < 0 ? "?" : "&") + "r=" + Date.now() : url, { mode: "cors", credentials: "omit", referrerPolicy: "no-referrer", cache: n ? "reload" : "default" })
+        .then(function (r) {
+          if (!r.ok) throw new Error("http " + r.status);
+          var len = +r.headers.get("content-length") || 0;
+          return r.blob().then(function (b) {
+            if (!/^image\//.test(b.type) || b.size < 2000 || (len && b.size < len)) throw new Error("short");
+            return b;
+          });
+        })
+        .catch(function (e) { if (!n) return attempt(1); throw e; });
+    };
+    inflight[url] = attempt(0).then(function (b) { var u = URL.createObjectURL(b); blobCache[url] = u; delete inflight[url]; return u; },
+      function (e) { delete inflight[url]; throw e; });
+    return inflight[url];
+  }
+  function show(img) { img.classList.add("in"); img.parentNode && img.parentNode.classList.add("ok"); }
+  function setSrc(img, src) {
+    return new Promise(function (res, rej) {
+      img.onload = function () { (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(function () { img.naturalWidth ? res() : rej(); }); };
+      img.onerror = rej; img.src = src;
+    });
+  }
+  function loadImg(img, url, now) {
+    var run = function () {
+      active++;
+      return getBlobURL(url).then(function (u) { return setSrc(img, u); })
+        .catch(function () { return setSrc(img, url).catch(function () { return setSrc(img, url + "?r2=" + Date.now()); }); }) /* direct fallback, then one more retry */
+        .then(function () { show(img); }, function () { img.parentNode && img.parentNode.classList.add("bad"); })
+        .then(function () { active--; pump(); });
+    };
+    if (now || blobCache[url]) { if (blobCache[url]) setSrc(img, blobCache[url]).then(function () { show(img); }, function () {}); else run(); return; }
+    queue.push({ img: img, url: url, pri: +img.dataset.pri || 0, run: run }); pump();
+  }
+  function pump() {
+    queue.sort(function (a, b) { return a.pri - b.pri; });
+    while (active < MAXC && queue.length) { var j = queue.shift(); if (j.img.isConnected) j.run(); }
+  }
+  function queueImg(img) { loadImg(img, img.dataset.src); }
+
+  /* ---------- dismiss (per device) ---------- */
+  var cardId = function (i) { return [i.zpid, i.kind, i.date || ""].join("|"); };
+  function getDismissed() { try { return JSON.parse(localStorage.getItem(DISMISS_STORE) || "[]"); } catch (e) { return []; } }
+  function setDismissed(a) { localStorage.setItem(DISMISS_STORE, JSON.stringify(a.slice(-300))); }
+  function dismissCard(id, el) {
+    var d = getDismissed(); if (d.indexOf(id) < 0) d.push(id); setDismissed(d);
+    var done = function () { renderAlerts(); };
+    if (el) { el.classList.add("gone"); setTimeout(done, 260); } else done();
+    toast("Dismissed", "Undo", function () { setDismissed(getDismissed().filter(function (x) { return x !== id; })); renderAlerts(); });
+  }
+  function bindSwipe(card) {
+    var hb = $(".hb", card), x0 = null, y0 = null, dx = 0, lock = null;
+    hb.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; lock = null; card.style.transition = "none"; }, { passive: true });
+    hb.addEventListener("touchmove", function (e) {
+      if (x0 == null) return; var mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+      if (lock == null && (Math.abs(mx) > 10 || Math.abs(my) > 10)) lock = Math.abs(mx) > Math.abs(my) * 1.4 ? "x" : "y";
+      if (lock !== "x") return; dx = Math.min(0, mx); card.style.transform = "translateX(" + dx + "px)"; card.style.opacity = String(1 - Math.min(.6, -dx / 400));
+    }, { passive: true });
+    hb.addEventListener("touchend", function () {
+      card.style.transition = ""; if (x0 == null) return; x0 = null;
+      if (lock === "x" && dx < -110) { card.style.transform = "translateX(-110%)"; card.style.opacity = "0"; setTimeout(function () { dismissCard(card.dataset.id); }, 200); }
+      else { card.style.transform = ""; card.style.opacity = ""; }
+    }, { passive: true });
+  }
+
   /* ---------- alerts tab ---------- */
   function carousel(item) {
-    var photos = item.photos || [];
+    var photos = (item.photos || []).map(function (p) { return typeof p === "string" ? { url: p } : p; }).filter(function (p) { return p && p.url; }).slice(0, 8);
     var badge = item.kind === "drop" ? '<span class="badge drop">PRICE DROP</span>' : item.kind === "status" ? '<span class="badge status">' + esc((item.newStatus || "Status change").toUpperCase()) + "</span>" : '<span class="badge new">NEW</span>';
-    if (!photos.length) return '<div class="car">' + badge + "</div>";
-    return '<div class="car" data-car>' + badge + '<span class="count">1 / ' + photos.length + "</span>" +
-      '<div class="carTrack">' + photos.map(function (p, i) { return '<img src="' + esc(p) + '" alt="Photo ' + (i + 1) + " of " + esc(item.address) + '" loading="' + (i < 2 ? "eager" : "lazy") + '" decoding="async" referrerpolicy="no-referrer" data-i="' + i + '" draggable="false">'; }).join("") + "</div>" +
+    var x = '<button class="dismissX" type="button" aria-label="Dismiss" data-dismiss>✕</button>';
+    if (!photos.length) return '<div class="car">' + badge + x + "</div>";
+    return '<div class="car" data-car>' + badge + x + '<span class="count">1 / ' + photos.length + "</span>" +
+      '<div class="carTrack">' + photos.map(function (p, i) { return '<div class="ph"><img alt="' + esc(p.label || "Photo " + (i + 1)) + " · " + esc(item.address) + '" data-src="' + esc(cardSize(p.url)) + '" data-full="' + esc(fullSize(p.url)) + '" data-label="' + esc(p.label || "") + '" data-pri="' + (i === 0 ? 0 : i === 1 ? 1 : 2) + '" data-i="' + i + '" draggable="false">' + (p.label ? '<span class="phLabel">' + esc(p.label) + "</span>" : "") + "</div>"; }).join("") + "</div>" +
       (photos.length > 1 ? '<button class="arrow left" type="button" aria-label="Previous photo" disabled>‹</button><button class="arrow right" type="button" aria-label="Next photo">›</button><div class="dots">' + photos.map(function (_, i) { return "<i" + (i === 0 ? ' class="on"' : "") + "></i>"; }).join("") + "</div>" : "") + "</div>";
   }
   function fmtDate(iso) { if (!iso) return ""; var d = new Date(iso + "T12:00:00"); return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }
@@ -214,14 +356,16 @@
         h.map(function (x, i) { var cls = i === h.length - 1 ? (item.kind === "status" ? " pend" : " now") : ""; return '<div class="step' + cls + '"><div class="d"></div><div class="sp">' + (x.label ? esc(x.label) : short$(x.price)) + '</div><div class="sd">' + esc(x.date) + "</div></div>"; }).join("") + "</div></div>";
     }
     var saveLabel = item.kind === "new" ? "Save on Zillow" : "Open in Zillow";
-    return '<article class="card home">' + carousel(item) + '<div class="hb"><div class="date">' + esc(item.headline || "") + (item.headline ? " · " : "") + esc(fmtDate(item.date)) + "</div>" +
+    return '<article class="card home" data-id="' + esc(cardId(item)) + '">' + carousel(item) + '<div class="hb"><div class="date">' + esc(item.headline || "") + (item.headline ? " · " : "") + esc(fmtDate(item.date)) + "</div>" +
       '<div class="addr">' + esc(item.address) + '</div><div class="city">' + esc(item.city) + (item.area ? " · " + esc(item.area) : "") + "</div>" +
       '<div class="prow">' + prow + '</div><div class="tiles">' + tiles + '</div><div class="facts">' + facts + "</div>" + hist +
       (item.note ? '<div class="note">' + esc(item.note) + "</div>" : "") +
-      '<div class="btns">' + btn(item.url, saveLabel, item.kind === "new" ? IC.heart : IC.z, true) + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + "</div></div></article>";
+      '<div class="btns">' + btn(item.url, saveLabel, item.kind === "new" ? IC.heart : IC.z, true) + btn(mapsSearch(item.address + ", " + item.city), "Navigate", IC.nav) + '</div><button class="dismissLink" type="button" data-dismiss>Dismiss</button></div></article>';
   }
   function renderAlerts() {
-    var el = $("#tab-alerts"), items = ((state.alerts && state.alerts.items) || []).slice();
+    var el = $("#tab-alerts"), allItems = ((state.alerts && state.alerts.items) || []).slice();
+    var dis = getDismissed(), hidden = allItems.filter(function (i) { return dis.indexOf(cardId(i)) >= 0; });
+    var items = state.showDismissed ? allItems : allItems.filter(function (i) { return dis.indexOf(cardId(i)) < 0; });
     items.sort(function (x, y) { return (y.date || "").localeCompare(x.date || ""); });
     var al = items.filter(function (i) { return i.kind !== "new"; }), nw = items.filter(function (i) { return i.kind === "new"; });
     var f = state.filter;
@@ -229,10 +373,20 @@
     var html = '<div class="chips">' + chip("all", "All", items.length) + chip("alerts", "Alerts", al.length) + chip("new", "New", nw.length) + "</div>";
     if (f !== "new") html += '<div class="secHead"><h2>Alerts</h2><span>Price drops &amp; status changes</span></div>' + (al.length ? '<div class="stack alertsGrid">' + al.map(homeCard).join("") + "</div>" : '<div class="card empty">No price drops or status changes yet.</div>');
     if (f !== "alerts") html += '<div class="secHead"><h2>New listings</h2><span>From your listing watch</span></div>' + (nw.length ? '<div class="stack alertsGrid">' + nw.map(homeCard).join("") + "</div>" : '<div class="card empty">No new matches yet.</div>');
+    if (hidden.length) html += '<p class="updated"><button class="linkBtn" id="showDis" type="button">' + (state.showDismissed ? "Hide dismissed" : "Show dismissed (" + hidden.length + ")") + "</button>" + (state.showDismissed ? ' · <button class="linkBtn" id="restoreDis" type="button">Restore all</button>' : "") + "</p>";
     if (state.alerts && state.alerts.updated) html += '<p class="updated">Updated ' + esc(new Date(state.alerts.updated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })) + "</p>";
     el.innerHTML = html;
     $$("[data-f]", el).forEach(function (b) { b.onclick = function () { state.filter = b.dataset.f; localStorage.setItem(FILTER_STORE, state.filter); renderAlerts(); }; });
     $$("[data-car]", el).forEach(function (c, ci) { bindCarousel(c); });
+    $$("article.home", el).forEach(function (card) {
+      var id = card.dataset.id, isDis = dis.indexOf(id) >= 0;
+      if (isDis) { card.classList.add("dismissed"); $$("[data-dismiss]", card).forEach(function (b) { b.textContent = b.classList.contains("dismissX") ? "↺" : "Restore"; b.setAttribute("aria-label", "Restore"); }); }
+      $$("[data-dismiss]", card).forEach(function (b) { b.onclick = function (e) { e.stopPropagation();
+        if (isDis) { setDismissed(getDismissed().filter(function (x) { return x !== id; })); renderAlerts(); toast("Restored"); } else dismissCard(id, card); }; });
+      if (!isDis) bindSwipe(card);
+    });
+    var sd = $("#showDis", el); if (sd) sd.onclick = function () { state.showDismissed = !state.showDismissed; renderAlerts(); };
+    var rd = $("#restoreDis", el); if (rd) rd.onclick = function () { setDismissed([]); state.showDismissed = false; renderAlerts(); toast("Restored all"); };
     var newest = items.length ? items.map(function (i) { return i.date || ""; }).sort().pop() : "";
     if (state.tab === "alerts") localStorage.setItem(SEEN_STORE, newest);
     $("#alertDot").hidden = !(newest && newest > (localStorage.getItem(SEEN_STORE) || ""));
@@ -246,10 +400,10 @@
     track.addEventListener("scroll", function () { cancelAnimationFrame(c._r); c._r = requestAnimationFrame(upd); }, { passive: true });
     if (prev) prev.onclick = function (e) { e.stopPropagation(); go(-1); };
     if (next) next.onclick = function (e) { e.stopPropagation(); go(1); };
-    var srcs = $$("img", track).map(function (i) { return i.getAttribute("src"); });
+    var srcs = $$("img", track).map(function (i) { return { url: i.dataset.full, label: i.dataset.label }; });
     $$("img", track).forEach(function (img) {
       img.addEventListener("click", function () { openViewer(srcs, +img.dataset.i); });
-      img.addEventListener("error", function () { img.style.opacity = 0; });
+      queueImg(img);
     });
   }
 
@@ -259,7 +413,8 @@
   function vUpd() { var i = vIdx(); $("#vCount").textContent = (i + 1) + " / " + V.n; $("#vPrev").disabled = i <= 0; $("#vNext").disabled = i >= V.n - 1; }
   function openViewer(srcs, start) {
     V.n = srcs.length;
-    V.track.innerHTML = srcs.map(function (s, i) { return '<div><img src="' + esc(s) + '" alt="Photo ' + (i + 1) + '" referrerpolicy="no-referrer" draggable="false"></div>'; }).join("");
+    V.track.innerHTML = srcs.map(function (s, i) { return '<div class="ph"><img data-src="' + esc(s.url) + '" alt="' + esc(s.label || "Photo " + (i + 1)) + '" draggable="false">' + (s.label ? '<span class="phLabel v">' + esc(s.label) + "</span>" : "") + "</div>"; }).join("");
+    $$("img", V.track).forEach(function (img) { loadImg(img, img.dataset.src, true); });
     V.el.hidden = false; document.body.style.overflow = "hidden";
     requestAnimationFrame(function () { V.track.scrollLeft = start * V.track.clientWidth; vUpd(); });
   }
@@ -282,10 +437,10 @@
     $("#tab-showings").hidden = t !== "showings"; $("#tab-alerts").hidden = t !== "alerts";
     $("#title").textContent = t === "showings" ? "Showings" : "Alerts & New";
     $("#eyebrow").textContent = "House Hunter";
-    if (t === "alerts") renderAlerts();
+    if (t === "alerts") { var nw = (state.alerts && state.alerts.items || []).map(function (i) { return i.date || ""; }).sort().pop() || ""; localStorage.setItem(SEEN_STORE, nw); $("#alertDot").hidden = true; }
     window.scrollTo({ top: 0 });
   }
-  function render() { renderShowings(); renderAlerts(); setTab(state.tab); }
+  function render() { renderShowings(); renderAlerts(); }
   $$(".tabBtn").forEach(function (b) { b.onclick = function () { if (state.tab === b.dataset.tab) window.scrollTo({ top: 0, behavior: "smooth" }); else setTab(b.dataset.tab); }; });
   $("#refreshBtn").onclick = function () { loadAll(true); };
   var sheet = $("#sheet");

@@ -1,5 +1,5 @@
 /* House Hunter service worker: network first for everything (data files included) so updates show on next open; cache is the offline fallback. */
-var CACHE = "house-hunter-v2";
+var CACHE = "house-hunter-v3";
 var ASSETS = ["./", "index.html", "styles.css", "app.js", "manifest.json",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png"];
 
@@ -18,6 +18,7 @@ self.addEventListener("activate", function (e) {
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
   var url = new URL(e.request.url);
+  /* Never intercept or cache cross-origin requests (Zillow photos, map tiles): the browser handles them directly. */
   if (url.origin !== self.location.origin) return;
   var isData = url.pathname.indexOf("/data/") !== -1;
   e.respondWith(
