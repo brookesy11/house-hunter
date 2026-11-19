@@ -373,7 +373,6 @@ td a{color:var(--brandDeep);font-weight:600}
 .cartBtn{width:100%;margin-top:12px;min-height:46px}
 .cartBtn:disabled{background:var(--greenBg);color:var(--greenText);opacity:1}
 .resetOrder{display:block;margin:8px auto 0;font-size:12.5px;font-weight:600;color:var(--text3)}
-.saveBtn:disabled{opacity:.7}
 .hookGroup{padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .hookLbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
 .hookIn{width:100%;font:500 15px -apple-system,system-ui,sans-serif;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)}
@@ -502,4 +501,7 @@ body.noScroll{overflow:hidden}
 .checkRow{min-height:48px;font:inherit;color:inherit;cursor:pointer;-webkit-user-select:none;user-select:none}
 .checkRow input{width:22px;height:22px;accent-color:var(--brand);flex-shrink:0}
 .listBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-.listBtns .btn:disabled{opacity:.4;pointer-events:none}
+.saveBtn.on{color:var(--red)}
+.saveBtn.pend{opacity:.62}
+.sb.ico.saveBtn{color:var(--btnText)}
+.sb.ico.saveBtn.on{color:var(--red)}

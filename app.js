@@ -16,6 +16,7 @@
     z: '<svg viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7v9.5h-17z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>',
     doc: '<svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9.5 13l2 2 3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     heart: '<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></svg>',
+    heartOn: '<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" fill="currentColor"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>'
   };
   var btn = function (href, label, icon, primary) {
@@ -61,16 +62,21 @@
     }).catch(function () { state.enc = null; });
   }
   function loadAlerts() { return fetchJSON("data/alerts.json").then(function (a) { state.alerts = a; }).catch(function () { if (!state.alerts) state.alerts = { items: [] }; }); }
+  function loadLists() { return fetchJSON("data/lists.json").then(function (a) { state.lists = a; }).catch(function () { if (!state.lists) state.lists = { items: {} }; }); }
   /* Only rebuild the DOM when the data really changed: rebuilding tore down <img>s mid-download on every app open. */
-  var lastSig = { s: null, a: null };
+  var lastSig = { s: null, a: null, l: null };
   function loadAll(manual, quiet) {
     var b = $("#refreshBtn"); if (!quiet) b.classList.add("spin");
-    return Promise.all([loadShowings(), loadAlerts()]).then(function () {
+    return Promise.all([loadShowings(), loadAlerts(), loadLists()]).then(function () {
       b.classList.remove("spin");
+      confirmPend();
       var sSig = (state.enc ? state.enc.ct : "none") + "|" + (state.showings ? 1 : 0) + "|" + state.unlockError + "|" + todayISO();
       var aSig = JSON.stringify(state.alerts || {});
-      if (sSig !== lastSig.s) { lastSig.s = sSig; renderShowings(); }
-      if (aSig !== lastSig.a) { lastSig.a = aSig; renderAlerts(); }
+      var lSig = JSON.stringify((state.lists && state.lists.items) || {}) + "|" + pendSig();
+      var listsChanged = lSig !== lastSig.l;
+      if (sSig !== lastSig.s || listsChanged) { lastSig.s = sSig; renderShowings(); }
+      if (aSig !== lastSig.a || listsChanged) { lastSig.a = aSig; renderAlerts(); }
+      lastSig.l = lSig;
       if (manual) toast("Up to date");
     });
   }
@@ -509,7 +515,7 @@
   function seenStopCard(s) {
     var pill = s.feedbackDone ? '<span class="s2Pill green">Feedback sent</span>' : '<span class="s2Pill">Seen</span>';
     var fb = s.feedbackUrl && !s.feedbackDone ? sb(s.feedbackUrl, "Leave feedback", IC.doc, true) : "";
-    return card2(s, { cls: "seen", pills: pill, noType: true, built: true, extra: take(s) + accessInfo(s), actions: fb + sb(s.zillow, fb ? "" : "Zillow", IC.z) + askS(s) });
+    return card2(s, { cls: "seen", pills: pill, noType: true, built: true, extra: take(s) + accessInfo(s), actions: fb + sb(s.zillow, fb ? "" : "Zillow", IC.z) + saveBtnHTML(s, true) + askS(s) });
   }
   function proposedStopCard(s, day, ctx) {
     ctx = ctx || {};
@@ -518,7 +524,7 @@
       var c = ctx.cart.sc.stops.filter(function (x) { return String(x.zpid) === String(s.zpid); })[0];
       ct = !c ? '<span class="s2Pill">Not in cart</span>' : parseT(c.start) !== s.startMin ? '<span class="s2Pill">Cart ' + esc(fmtS(parseT(c.start))) + "</span>" : "";
     }
-    var acts = sb(s.nav, "Navigate", IC.nav, true) + sb(s.zillow, "", IC.z) + askS(s);
+    var acts = sb(s.nav, "Navigate", IC.nav, true) + sb(s.zillow, "", IC.z) + saveBtnHTML(s, true) + askS(s);
     if (ctx.locked) return card2(s, { time: s.time, pills: '<span class="s2Pill amber">Requested</span>', actions: acts });
     var zo = zps(day).map(String), zi = zo.indexOf(String(s.zpid));
     var opts = (zi > 0 ? '<option value="up">Move up</option>' : "") + (zi > -1 && zi < zo.length - 1 ? '<option value="down">Move down</option>' : "") +
@@ -535,7 +541,7 @@
     var extra = (code ? '<div class="codeRow"><span>' + (isDoor ? "Door code" : "Lockbox") + '</span><b>' + esc(code) + "</b></div>" : "") +
       (s.flag ? '<div class="flag">' + esc(s.flag) + "</div>" : "") + (s.instructions ? '<div class="door">' + esc(s.instructions) + "</div>" : "") + take(s);
     return card2(s, { time: s.time, green: !pend, pills: pend ? '<span class="s2Pill amber">Requested</span>' : "", extra: extra,
-      actions: sb(s.nav, "Navigate", IC.nav, true) + sb(tel, "Call", IC.call, false, false) + sb(s.confirmUrl, "Edit", IC.doc) + sb(s.feedbackUrl, "Feedback", IC.doc) + sb(s.zillow, "", IC.z) + askS(s) });
+      actions: sb(s.nav, "Navigate", IC.nav, true) + sb(tel, "Call", IC.call, false, false) + sb(s.confirmUrl, "Edit", IC.doc) + sb(s.feedbackUrl, "Feedback", IC.doc) + sb(s.zillow, "", IC.z) + saveBtnHTML(s, true) + askS(s) });
   }
   function stopsHTML(day, ctx) {
     return '<div class="stack s2List">' + day.showings.map(function (s, i) {
@@ -762,38 +768,73 @@
   }
   function queueImg(img) { loadImg(img, img.dataset.src); }
 
-  /* ---------- save to Zillow lists via webhook ---------- */
-  var SAVING_STORE = "hh.saving.v1";
+  /* ---------- Zillow list membership (heart) ---------- */
+  var PEND_STORE = "hh.listsPend.v1", PEND_MS = 10 * 60 * 1000;
   var ZILLOW_LISTS = ["Shows before Hoes", "Shared Faves", "Personal"];
-  function savingMap() { try { return JSON.parse(localStorage.getItem(SAVING_STORE) || "{}"); } catch (e) { return {}; } }
-  function savingAt(z) { var m = savingMap(); return m[z] && Date.now() - m[z] < 24 * 3600 * 1000 ? m[z] : 0; }
-  function isSavedHome(item) {
-    var all = (state.alerts && state.alerts.items) || [];
-    return all.some(function (i) { return String(i.zpid) === String(item.zpid) && (i.saved || i.savedAt || i.onFaves); });
+  function normLists(a) {
+    var have = {}; (a || []).forEach(function (n) { have[n] = true; });
+    return ZILLOW_LISTS.filter(function (n) { return have[n]; });
+  }
+  function sameLists(a, b) { return normLists(a).join("\0") === normLists(b).join("\0"); }
+  function pendMap() { try { return JSON.parse(localStorage.getItem(PEND_STORE) || "{}"); } catch (e) { return {}; } }
+  function writePend(m) { localStorage.setItem(PEND_STORE, JSON.stringify(m)); }
+  function pendSig() { var m = pendMap(), k = Object.keys(m).sort(); return k.map(function (z) { var p = m[z]; return z + ":" + (p && p.at) + ":" + normLists(p && p.lists).join(","); }).join("|"); }
+  var pendTimers = {};
+  function clearPend(z) { var m = pendMap(); delete m[String(z)]; writePend(m); clearTimeout(pendTimers[z]); }
+  function publishedLists(z) {
+    z = String(z || "");
+    var items = (state.lists && state.lists.items) || {};
+    if (items[z]) return normLists(items[z]);
+    var a = ((state.alerts && state.alerts.items) || []).filter(function (i) { return String(i.zpid) === z && i.lists; })[0];
+    return normLists(a && a.lists);
+  }
+  function listsFor(z) {
+    z = String(z || "");
+    var p = pendMap()[z];
+    if (p && Date.now() - p.at < PEND_MS && !sameLists(p.lists, publishedLists(z))) return normLists(p.lists);
+    return publishedLists(z);
+  }
+  function isPend(z) {
+    z = String(z || "");
+    var p = pendMap()[z];
+    return !!(p && Date.now() - p.at < PEND_MS && !sameLists(p.lists, publishedLists(z)));
+  }
+  function confirmPend() {
+    var m = pendMap(), ch = false, z;
+    for (z in m) if (Object.prototype.hasOwnProperty.call(m, z)) {
+      if (Date.now() - m[z].at >= PEND_MS || sameLists(m[z].lists, publishedLists(z))) { delete m[z]; clearTimeout(pendTimers[z]); ch = true; }
+    }
+    if (ch) writePend(m);
+  }
+  function setPend(z, lists, previous) {
+    z = String(z);
+    var m = pendMap(); m[z] = { lists: normLists(lists), previous: normLists(previous), at: Date.now() }; writePend(m);
+    clearTimeout(pendTimers[z]);
+    pendTimers[z] = setTimeout(function () { confirmPend(); render(); }, PEND_MS + 30);
   }
   function zillowIco(url) {
     return url ? '<a class="btn ico" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" aria-label="Zillow">' + IC.z + "</a>" : "";
   }
-  function saveBtnHTML(item) {
-    if (!item || !item.zpid || isSavedHome(item) || !(item.url || item.zillow)) return "";
-    var pending = !!savingAt(item.zpid);
-    return '<button class="btn ico saveBtn" type="button" data-save="' + esc(item.zpid) + '" aria-label="' + (pending ? "Saving…" : "Save to Zillow") + '"' + (pending ? " disabled" : "") + ">" + IC.heart + "</button>";
+  function saveBtnHTML(item, small) {
+    if (!item || !item.zpid) return "";
+    var lists = listsFor(item.zpid), on = lists.length > 0, pending = isPend(item.zpid);
+    var cls = (small ? "sb ico" : "btn ico") + " saveBtn" + (on ? " on" : "") + (pending ? " pend" : "");
+    return '<button class="' + cls + '" type="button" data-save="' + esc(item.zpid) + '" aria-label="' + (on ? "On a Zillow list" : "Not on a Zillow list") + '">' + (on ? IC.heartOn : IC.heart) + "</button>";
   }
   function itemForSave(z) {
     var a = ((state.alerts && state.alerts.items) || []).filter(function (i) { return String(i.zpid) === String(z); })[0];
     if (a) return a;
-    var s = stopByZ(String(z)); if (!s) return null;
+    var s = stopByZ(String(z)); if (!s) return { zpid: z };
     var p = String(s.address || "").split(",");
     return { zpid: s.zpid, address: p[0], city: (s.cityFull || s.city || (p[1] || "").trim()), url: s.zillow || s.url };
   }
   var saveTarget = null;
   function pickedLists() { return $$("#listSheet input[type=checkbox]:checked").map(function (c) { return c.value; }); }
-  function syncListSave() { var b = $("#listSave"); if (b) b.disabled = !pickedLists().length; }
   function closeListSheet() {
     var el = $("#listSheet"); if (!el || el.hidden) return;
     el.hidden = true;
     $$("input[type=checkbox]", el).forEach(function (c) { c.checked = false; });
-    syncListSave(); saveTarget = null;
+    saveTarget = null;
   }
   function openListSheet(item) {
     if (!hookCfg()) { openSettings(true); return; }
@@ -802,25 +843,29 @@
     if (g && !g.childElementCount) g.innerHTML = ZILLOW_LISTS.map(function (n) {
       return '<label class="row checkRow"><span>' + esc(n) + '</span><input type="checkbox" value="' + esc(n) + '"></label>';
     }).join("");
-    $$("input[type=checkbox]", $("#listSheet")).forEach(function (c) { c.checked = false; });
-    syncListSave();
+    var cur = listsFor(item.zpid);
+    $$("input[type=checkbox]", $("#listSheet")).forEach(function (c) { c.checked = cur.indexOf(c.value) >= 0; });
+    var b = $("#listSave"); if (b) b.disabled = false;
     $("#listSheet").hidden = false;
   }
-  function markSaveBtns(z, pending) {
+  function paintHearts(z) {
     $$("[data-save]").forEach(function (b) {
       if (String(b.dataset.save) !== String(z)) return;
-      b.disabled = !!pending;
-      b.setAttribute("aria-label", pending ? "Saving…" : "Save to Zillow");
+      var lists = listsFor(z), on = lists.length > 0, pending = isPend(z);
+      b.classList.toggle("on", on); b.classList.toggle("pend", pending);
+      b.setAttribute("aria-label", on ? "On a Zillow list" : "Not on a Zillow list");
+      b.innerHTML = on ? IC.heartOn : IC.heart;
     });
   }
-  function saveHome(item, lists) {
+  function saveHome(item, lists, previous) {
     if (!hookCfg()) { openSettings(true); return; }
-    if (!lists || !lists.length) return;
+    lists = normLists(lists); previous = normLists(previous);
     closeListSheet();
-    markSaveBtns(item.zpid, true);
-    postHook({ action: "save", zpid: String(item.zpid), address: item.address + ", " + item.city, url: item.url || item.zillow, lists: lists }).then(function () {
-      var m = savingMap(); m[item.zpid] = Date.now(); localStorage.setItem(SAVING_STORE, JSON.stringify(m));
-    }, function (e) { markSaveBtns(item.zpid, false); toast(hookErr(e)); });
+    setPend(item.zpid, lists, previous);
+    paintHearts(item.zpid);
+    postHook({ action: "save", zpid: String(item.zpid), address: item.address + ", " + item.city, url: item.url || item.zillow, lists: lists, previous: previous }).catch(function (e) {
+      clearPend(item.zpid); paintHearts(item.zpid); toast(hookErr(e));
+    });
   }
 
   /* ---------- dismiss (per device) ---------- */
@@ -916,7 +961,6 @@
     });
     $$("article.home .addr, article.home .city", el).forEach(function (t) { t.classList.add("tapOpen"); t.onclick = function () {
       var card = t.closest("article.home"), it = allItems.filter(function (i) { return cardId(i) === card.dataset.id; })[0]; if (it) openDetail(it, false); }; });
-    $$("[data-save]", el).forEach(function (b) { b.onclick = function () { var it = itemForSave(b.dataset.save); if (it) openListSheet(it); }; });
     var sd = $("#showDis", el); if (sd) sd.onclick = function () { state.showDismissed = !state.showDismissed; renderAlerts(); };
     var rd = $("#restoreDis", el); if (rd) rd.onclick = function () { setDismissed([]); state.showDismissed = false; renderAlerts(); toast("Restored all"); };
     var newest = items.length ? items.map(function (i) { return i.date || ""; }).sort().pop() : "";
@@ -997,7 +1041,6 @@
     var mb = $(".dMore", sc), dd = $(".dDesc", sc);
     if (mb) requestAnimationFrame(function () { if (dd.scrollHeight <= dd.clientHeight + 4) { mb.remove(); dd.classList.remove("clamp"); } });
     if (mb) mb.onclick = function () { dd.classList.remove("clamp"); mb.remove(); };
-    $$("[data-save]", sc).forEach(function (b) { b.onclick = function () { var it = itemForSave(b.dataset.save); if (it) openListSheet(it); }; });
     clearTimeout(D._t); D.hidden = false; document.body.classList.add("noScroll"); sc.scrollTop = 0;
     var sh = $(".dSheet", D); sh.style.transform = ""; sh.classList.remove("closing");
   }
@@ -1081,13 +1124,18 @@
     if (g) g.innerHTML = ZILLOW_LISTS.map(function (n) {
       return '<label class="row checkRow"><span>' + esc(n) + '</span><input type="checkbox" value="' + esc(n) + '"></label>';
     }).join("");
-    if (el) {
-      el.addEventListener("change", syncListSave);
-      $$("[data-list-close]", el).forEach(function (b) { b.onclick = closeListSheet; });
-    }
+    if (el) $$("[data-list-close]", el).forEach(function (b) { b.onclick = closeListSheet; });
     if ($("#listSave")) $("#listSave").onclick = function () {
-      var lists = pickedLists(); if (!lists.length || !saveTarget) return; saveHome(saveTarget, lists);
+      if (!saveTarget) return;
+      var lists = pickedLists(), prev = listsFor(saveTarget.zpid);
+      if (sameLists(lists, prev)) { closeListSheet(); return; }
+      saveHome(saveTarget, lists, prev);
     };
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-save]"); if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      var it = itemForSave(b.dataset.save); if (it) openListSheet(it);
+    });
   })();
   $("#lockBtn").onclick = function () { localStorage.removeItem(KEY_STORE); state.showings = null; sheet.hidden = true; renderShowings(); setTab("showings"); toast("Locked on this device"); };
   $("#reloadBtn").onclick = function () { sheet.hidden = true; loadAll(true); };
