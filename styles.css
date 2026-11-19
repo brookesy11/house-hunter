@@ -302,17 +302,6 @@ td a{color:var(--brandDeep);font-weight:600}
 .phLabel{position:absolute;left:12px;bottom:10px;z-index:2;font-size:11.5px;font-weight:700;letter-spacing:.02em;color:#fff;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:4px 9px;border-radius:999px;pointer-events:none}
 .phLabel.v{bottom:calc(var(--safeB) + 70px);left:50%;transform:translateX(-50%);font-size:13px}
 
-/* stop thumbnails + seen state */
-.thumb{position:relative;width:60px;height:60px;border-radius:14px;flex-shrink:0;background:var(--sub);overflow:visible}
-.thumb img{width:60px;height:60px;border-radius:14px;object-fit:cover;display:block;opacity:0;transition:opacity .25s}
-.thumb img.in{opacity:1}
-.thumb.ph:not(.ok):not(.none){background:linear-gradient(100deg,var(--sub) 30%,var(--line) 50%,var(--sub) 70%);background-size:300% 100%;animation:shimmer 1.4s linear infinite}
-.thumb.none{display:grid;place-items:center;color:var(--text3)}
-.thumb.none>svg{width:26px;height:26px}
-.thumb .num{position:absolute;top:-6px;left:-6px;width:24px;height:24px;font-size:12px;border:2px solid var(--card)}
-.thumb .num.seen{background:var(--text3)}
-.seenStop .stopAddr{font-size:17px}
-.seenStop .stopTime{font-size:15px;font-weight:700;color:var(--text);margin-top:2px}
 .feedbackBtn{min-height:50px;font-size:16px;box-shadow:0 6px 18px rgba(22,163,74,.28)}
 .fbDone{font-size:14px;font-weight:650;color:var(--greenText);background:var(--greenBg);border-radius:14px;padding:11px 14px}
 .fbDone a{text-decoration:underline}
@@ -329,3 +318,45 @@ td a{color:var(--brandDeep);font-weight:600}
 .aiBody span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
 .aiBody p{line-height:1.45}
 .aiCode{font-size:17px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+
+/* minimal stop cards (v5) */
+.stop{padding:14px 14px 14px;gap:11px}
+.sHead{display:flex;align-items:center;gap:12px;min-width:0}
+.thumb{flex:0 0 56px;width:56px;height:56px;border-radius:12px;overflow:hidden;background:var(--sub);position:relative}
+.thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;opacity:0;transition:opacity .25s}
+.thumb img.in{opacity:1}
+.thumb:not(.ok):not(.none){background:linear-gradient(100deg,var(--sub) 30%,var(--line) 50%,var(--sub) 70%);background-size:300% 100%;animation:shimmer 1.4s linear infinite}
+.thumb.none{display:grid;place-items:center;color:var(--text3)}
+.thumb.none svg{width:26px;height:26px}
+.sMain{flex:1;min-width:0}
+.sTime{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:1px}
+.sTime .n{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;font-weight:800}
+.sTime .n.p{background:var(--yellow)}
+.sAddr{font-size:16px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.sBasics{font-size:12.5px;color:var(--text2);margin-top:2px}
+.sRight{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px;align-self:flex-start;padding-top:1px}
+.sRight b{font-size:16px;font-weight:800;letter-spacing:-.01em}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;background:var(--sub);color:var(--text2);white-space:nowrap}
+.tag.amber{background:var(--amberBg);color:var(--amberText)}
+.tag.green{background:var(--greenBg);color:var(--greenText)}
+.sDrive{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text3);margin-top:-3px}
+.sDrive svg{width:12px;height:12px}
+.codeRow{display:flex;align-items:baseline;justify-content:space-between;background:var(--sub);border-radius:12px;padding:10px 14px}
+.codeRow span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.codeRow b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.stop .flag{font-size:13px;padding:8px 12px}
+.stop .door{font-size:13px}
+.take{border-top:0;padding-top:0}
+.take .stars{font-size:14px}
+.take p{font-size:13.5px;margin-top:2px}
+.proposedStop{box-shadow:inset 3px 0 0 var(--yellow),var(--shadow)}
+.dayCard{padding:14px 16px}
+.dayTop{align-items:center}
+.dayTitle{font-size:18px}
+.dayCard .metrics{margin-top:10px}
+.dayCard.proposed{box-shadow:var(--shadow)}
+.gap{height:12px}
+.emptyState{display:flex;align-items:center;gap:12px;padding:18px;text-align:left;margin-top:10px;color:var(--text3)}
+.emptyState svg{width:26px;height:26px;flex-shrink:0}
+.emptyState p{font-size:15px;color:var(--text2);margin:0}
+.seenStop .btns.one .btn{min-height:40px}
