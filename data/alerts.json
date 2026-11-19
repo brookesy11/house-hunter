@@ -109,7 +109,120 @@
    "id": "13478407-drop",
    "saved": true,
    "savedAt": "2026-11-19T10:16:51-07:00",
-   "showType": "go_and_show"
+   "showType": "go_and_show",
+   "listing": {
+    "zpid": "13478407",
+    "url": "https://www.zillow.com/homedetails/11986-Bear-Creek-Dr-Franktown-CO-80116/13478407_zpid/",
+    "status": "For sale",
+    "price": 869000,
+    "priceChange": -6000,
+    "beds": 6,
+    "baths": 2,
+    "sqft": 3268,
+    "acres": 1.8,
+    "built": 1995,
+    "description": "Discover a fresh take on Colorado living in Franktown’s Flintwood Hills. Offered at $899,000, this extensively remodeled ranch-style home sits on approximately 1.8 acres and pairs modern interior updates with the space and versatility that are increasingly hard to find. The inviting great room features a dramatic floor-to-ceiling fireplace surround, while the beautifully updated kitchen offers white cabinetry, quartz countertops, stainless steel appliances, and a waterfall-edge peninsula. With six bedrooms and approximately 3,268 finished square feet, the flexible floor plan offers room for entertaining, hobbies, working from home, fitness, or additional recreational space. The main-level primary suite provides a comfortable retreat, while the finished lower level expands the possibilities. The developer indicates that an additional three-quarter bathroom may be added in the basement and that the existing septic system can support the additional bathroom, offering an opportunity to further enhance the home's functionality, subject to applicable approvals and verification. Outdoors, enjoy mature trees, generous lawn areas, and a paver patio ready for relaxing evenings or gatherings with friends. Experience the appeal of a spacious acreage property with convenient access to Parker, Castle Rock, and surrounding Douglas County amenities. Come explore the possibilities and imagine making this distinctive Franktown property your own!",
+    "photos": [
+     {
+      "url": "https://photos.zillowstatic.com/fp/a0b97ab563bfe6b804629490f227a1ad-cc_ft_1536.jpg",
+      "label": "Front"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/22055b7ac2df407601f79fe65d709c4a-cc_ft_1536.jpg",
+      "label": "Kitchen"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/bd78a91edbc6e566de8226b1ec3d810a-cc_ft_1536.jpg",
+      "label": "Patio & yard"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/becb2912f214850436b1f0646f165453-cc_ft_1536.jpg",
+      "label": "Aerial · 1.8 ac"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/7157d3f1bf92684deb2dc97d68beaba5-cc_ft_1536.jpg",
+      "label": "Living"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/b5513004697ffadc164512ce574893a7-cc_ft_1536.jpg",
+      "label": "Fireplace"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/de6444d41edd252d7408fe8d54c7ba8d-cc_ft_1536.jpg",
+      "label": "Garage"
+     },
+     {
+      "url": "https://photos.zillowstatic.com/fp/8708c64e714c3098c8c82e1c221f1130-cc_ft_1536.jpg",
+      "label": "Dining"
+     },
+     "https://photos.zillowstatic.com/fp/0eaa550475fb6a9e8f3dbfa23fff6b62-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/06ffa448a3394e483c6136c4294a6c26-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/d1cdecc368c892e2a64963ce1a5e75c0-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/0fd78308176d943787bda014b5646073-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/81466253ed5d34fed42cf17300dd707a-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/97cd557d3dabd553025b7b58b4b5669e-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/a45f3aea4a2109ad3f69de29ea02a4dc-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/e3e79a5f4efaf529f67576230fe470af-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/109dbffe46e4abc850b0c134f61d3d82-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/ccb0344deda368795f7e985605dacfe4-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/9f7f41e6b578b85adb688f780f6723f3-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/fefb4d6b7de434447944a3cbdc98a7aa-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/ef833e36244782b5deec54e2a3cc7c42-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/a345d49ccad8d61e562a18592a34b846-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/4ed243e433c3d9b35ebc8b92680c3eee-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/a74d75490306be9128085f9109d79732-cc_ft_1536.jpg"
+    ],
+    "facts": [
+     [
+      "Lot",
+      "1.8 acres"
+     ],
+     [
+      "Garage",
+      "2-car attached"
+     ],
+     [
+      "On Zillow",
+      "58 days"
+     ],
+     [
+      "MLS #",
+      "1610345"
+     ],
+     [
+      "Status",
+      "For sale"
+     ],
+     [
+      "Type",
+      "Single Family Residence"
+     ],
+     [
+      "Per sq ft",
+      "$266"
+     ]
+    ],
+    "history": [
+     {
+      "date": "2026-04-06",
+      "label": "Sold",
+      "price": 550000
+     },
+     {
+      "date": "2026-09-21",
+      "label": "Listed",
+      "price": 875000
+     },
+     {
+      "date": "2026-11-17",
+      "label": "Price change",
+      "price": 869000
+     }
+    ],
+    "mls": "1610345",
+    "dom": 58,
+    "fetched": "2026-11-19T11:04:49-07:00"
+   }
   },
   {
    "zpid": "13496312",
