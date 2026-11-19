@@ -22,10 +22,8 @@
   </defs>
   <rect width="1024" height="1024" fill="url(#bg)"/>
   <rect width="1024" height="1024" fill="url(#sheen)"/>
-  <g transform="translate(512 512) scale(0.8) translate(-512 -508)" filter="url(#depth)">
-    <g filter="url(#bevel)" fill="url(#mark)">
-      <path d="M232 500 L512 262 L792 500" fill="none" stroke="url(#mark)" stroke-width="74" stroke-linejoin="round" stroke-linecap="round"/>
-      <path d="M356 530 Q356 516 370 516 H654 Q668 516 668 530 V786 Q668 800 654 800 H566 V658 L540 632 H458 V800 H370 Q356 800 356 786 Z"/>
-    </g>
-  </g>
+  <g filter="url(#depth)"><g filter="url(#bevel)" fill="url(#mark)">
+    <path fill-rule="evenodd" d="M272.1 504.9 L512.0 290.4 L751.9 504.9 L693.8 504.9 L693.8 734.9 L330.2 734.9 L330.2 504.9 Z M372.8 472.2 L512.0 354.3 L651.2 472.2 L651.2 683.9 L372.8 683.9 Z"/>
+    <path d="M465.1 683.9 L465.1 480.8 L566.0 523.4 L566.0 683.9 Z"/>
+  </g></g>
 </svg>
