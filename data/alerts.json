@@ -30,7 +30,9 @@
    "headline": "New match",
    "note": "Walkout basement, central air, barn and horse zoning. Older home; yard is a horse setup with a barn rather than a flat backyard.",
    "ppsf": 304,
-   "id": "13434044-new"
+   "id": "13434044-new",
+   "saved": true,
+   "savedAt": "2026-11-19T10:16:51-07:00"
   },
   {
    "zpid": "13478407",
@@ -104,7 +106,9 @@
     }
    ],
    "ppsf": 266,
-   "id": "13478407-drop"
+   "id": "13478407-drop",
+   "saved": true,
+   "savedAt": "2026-11-19T10:16:51-07:00"
   },
   {
    "zpid": "13496312",
@@ -161,7 +165,9 @@
    "headline": "Went pending",
    "note": "Pending, still accepting backup offers.",
    "ppsf": 285,
-   "id": "13496312-status"
+   "id": "13496312-status",
+   "saved": true,
+   "savedAt": "2026-11-19T10:16:51-07:00"
   },
   {
    "zpid": "97855961",
@@ -212,8 +218,10 @@
    "headline": "New match",
    "note": "1980 ranch with a pool on 1.29 acres. Saved to Shared Faves.",
    "ppsf": 204,
-   "id": "97855961-new"
+   "id": "97855961-new",
+   "saved": true,
+   "savedAt": "2026-11-19T10:16:51-07:00"
   }
  ],
- "updated": "2026-11-19T09:47:45-07:00"
+ "updated": "2026-11-19T10:16:51-07:00"
 }
