@@ -35,6 +35,120 @@
    "lists": []
   },
   {
+   "kind": "new",
+   "zpid": "67451034",
+   "date": "2026-11-19",
+   "address": "5415 Lenox Ct",
+   "city": "Castle Rock, CO 80104",
+   "url": "https://www.zillow.com/homedetails/5415-Lenox-Ct-Castle-Rock-CO-80104/67451034_zpid/",
+   "price": 1046000,
+   "beds": 5,
+   "baths": 6,
+   "sqft": 5315,
+   "acres": 0.93,
+   "built": 2005,
+   "style": "Ranch",
+   "hoa": "$87/mo",
+   "dom": 0,
+   "photos": [
+    {
+     "url": "https://photos.zillowstatic.com/fp/1d96acb9f53635d2c61bc9ffe1167dcc-cc_ft_1536.jpg",
+     "label": "Front"
+    }
+   ],
+   "note": "5,315-sf ranch with finished basement on a level 0.93-acre cul-de-sac in Castlewood Ranch; central AC, 4-car garage, close to Castle Rock amenities. Catch: $87/mo HOA (trash/recycling); 2005 build; walkout not stated; Zillow shows 6,072 sqft.",
+   "ppsf": 197,
+   "id": "67451034-new",
+   "listing": {
+    "zpid": "67451034",
+    "url": "https://www.zillow.com/homedetails/5415-Lenox-Ct-Castle-Rock-CO-80104/67451034_zpid/",
+    "status": "For sale",
+    "price": 1046000,
+    "priceChange": null,
+    "beds": 5,
+    "baths": 6,
+    "sqft": 6072,
+    "acres": 0.93,
+    "built": 2005,
+    "description": "Better than new, this Castlewood Ranch home sits on nearly an acre at the end of a cul-de-sac. With established landscaping, sprawling ranch-style layout, custom four-car garage, plus views of Matney Park’s disc golf course, this is Colorado living at its best. Real hardwood floors run through the main level. The kitchen opens to the great room and features a generous island, gas cooktop, built-in wall oven, and walk-in pantry. The main level includes two spacious secondary bedrooms, a flex room (or non-conforming bedroom), a dedicated office, and laundry room with utility sink. The primary suite offers room for a sitting area, direct backyard access, walk-in closet, and five-piece en suite bathroom. The expansive basement rec area offers endless possibilities. Set up a game table beside the wet bar, create a movie lounge, or carve out space for workouts and hobbies. A bedroom with walk-in closet and en suite bath gives guests their own space, and a separate half bath serves the rec area. A “must see” custom four-car garage featuring checkerboard flooring rounds out the house. Matney Park’s playground, covered picnic pavilion, and multipurpose turf field are less than two blocks away. Follow the paved Mitchell Creek Trail for an everyday walk or spend a weekend exploring the newly opened Lost Canyon Ranch Open Space with 15 miles of hiking trails across 716 acres. Philip S. Miller Park adds ziplining, the 200-step Challenge Hill and summer concerts at the outdoor amphitheater, along with an indoor pool at the Miller Activity Complex. Summer brings the farmers market and rodeo to the Douglas County Fairgrounds. Groceries, shopping, and restaurants are all close by. With room to spread out, a small neighborhood feel, and so many ways to spend the day outdoors, this is the ultimate Colorado lifestyle.",
+    "photos": [
+     "https://photos.zillowstatic.com/fp/1d96acb9f53635d2c61bc9ffe1167dcc-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/773fcac4f726cd8283080ccc740156bf-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/1cd889c451d03f959085364bc95fe0c6-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/0f788e2600b26122bbd7f8456cb9b3fa-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/93061e3a70963e83612444cda1344961-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/62d6f1cad149c18cc9be05b8154d30db-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/ef0cfa36d961a679ceeed58d5761e342-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/e568d999d5ffe3245c28829cc62e779d-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/4e5f405a37fab27e5c29d8350461f1df-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/0c33b3fbe2acd3abf78d5693bb548522-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/eeb7277aeee0ce09d4ecf82a53706a08-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/b8eee53c7990139d82f7982f6081d5b3-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/644f0aba07001756c06240fcc6e2eb1a-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/2f6da1c42cca52ab0a0c9a2e6ad265bb-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/554cf5d93e7bfa52f66c797553516424-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/0183b7817bb0fe5c51153e39b40745a2-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/1faaa176c6377e9d58e9649625354196-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/66d3c901223a31ee682ee7fd42ef4ad3-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/0067795c6ed5e4a7dd86c1d44e118079-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/310721d34a761db62329385819609235-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/974a453f6aaf46373903cec390fa69f1-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/1389fd235751e73c014a9516f0203855-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/8d1d7f913e6a76ee1a97c415bc87677d-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/3694a04bce08fff06dfe0c7aff4d9cbc-cc_ft_1536.jpg"
+    ],
+    "facts": [
+     [
+      "Lot",
+      "0.93 acres"
+     ],
+     [
+      "HOA",
+      "$87/mo"
+     ],
+     [
+      "Garage",
+      "4-car attached · oversized"
+     ],
+     [
+      "On Zillow",
+      "0 days"
+     ],
+     [
+      "MLS #",
+      "3830987"
+     ],
+     [
+      "Status",
+      "For sale"
+     ],
+     [
+      "Type",
+      "Single Family Residence"
+     ],
+     [
+      "Per sq ft",
+      "$172"
+     ]
+    ],
+    "history": [
+     {
+      "date": "2005-04-15",
+      "label": "Sold",
+      "price": 449773
+     },
+     {
+      "date": "2026-11-19",
+      "label": "Listed",
+      "price": 1046000
+     }
+    ],
+    "mls": "3830987",
+    "dom": 0,
+    "fetched": "2026-11-19T13:54:53-07:00"
+   }
+  },
+  {
    "zpid": "13478407",
    "url": "https://www.zillow.com/homedetails/11986-Bear-Creek-Dr-Franktown-CO-80116/13478407_zpid/",
    "photos": [
@@ -337,5 +451,5 @@
    "lists": []
   }
  ],
- "updated": "2026-11-19T13:52:16-07:00"
+ "updated": "2026-11-19T13:54:52-07:00"
 }
