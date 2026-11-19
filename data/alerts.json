@@ -1,0 +1,144 @@
+{
+ "items": [
+  {
+   "zpid": "13434044",
+   "url": "https://www.zillow.com/homedetails/9093-Flamingo-Way-Littleton-CO-80125/13434044_zpid/",
+   "photos": [
+    "https://photos.zillowstatic.com/fp/df7e784558560ae43b905b37301184a6-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/719a5298d812a424af24c9a867b4018f-cc_ft_1536.jpg"
+   ],
+   "beds": 5,
+   "baths": 4,
+   "sqft": 4266,
+   "acres": 2.5,
+   "built": 1983,
+   "dom": 4,
+   "kind": "new",
+   "date": "2026-11-19",
+   "address": "9093 Flamingo Way",
+   "city": "Littleton, CO 80125",
+   "area": "Plum Creek Acres",
+   "price": 1295000,
+   "style": "One-story ranch",
+   "hoa": "None",
+   "headline": "New match",
+   "note": "Walkout basement, central air, barn and horse zoning. Older home; yard is a horse setup with a barn rather than a flat backyard.",
+   "ppsf": 304,
+   "id": "13434044-new"
+  },
+  {
+   "zpid": "13478407",
+   "url": "https://www.zillow.com/homedetails/11986-Bear-Creek-Dr-Franktown-CO-80116/13478407_zpid/",
+   "photos": [
+    "https://photos.zillowstatic.com/fp/a0b97ab563bfe6b804629490f227a1ad-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/bd78a91edbc6e566de8226b1ec3d810a-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/becb2912f214850436b1f0646f165453-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/de6444d41edd252d7408fe8d54c7ba8d-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/7157d3f1bf92684deb2dc97d68beaba5-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/b5513004697ffadc164512ce574893a7-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/8708c64e714c3098c8c82e1c221f1130-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/22055b7ac2df407601f79fe65d709c4a-cc_ft_1536.jpg"
+   ],
+   "beds": 6,
+   "baths": 2,
+   "sqft": 3268,
+   "acres": 1.8,
+   "built": 1995,
+   "dom": 58,
+   "kind": "drop",
+   "date": "2026-11-18",
+   "address": "11986 Bear Creek Dr",
+   "city": "Franktown, CO 80116",
+   "area": "Flintwood Hills",
+   "price": 869000,
+   "oldPrice": 875000,
+   "style": "Ranch",
+   "hoa": "None",
+   "headline": "Price cut",
+   "history": [
+    {
+     "date": "9/28",
+     "price": 925000
+    },
+    {
+     "date": "10/20",
+     "price": 899000
+    },
+    {
+     "date": "10/30",
+     "price": 875000
+    },
+    {
+     "date": "11/18",
+     "price": 869000
+    }
+   ],
+   "ppsf": 266,
+   "id": "13478407-drop"
+  },
+  {
+   "zpid": "13496312",
+   "url": "https://www.zillow.com/homedetails/4367-Tallyrand-Cir-Castle-Rock-CO-80104/13496312_zpid/",
+   "photos": [
+    "https://photos.zillowstatic.com/fp/b6e04d636d468186d6ccd94f4ad8dbc9-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/8a062f1880a8fbc8e1a70ea98f32111d-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/3b7b92e5f1476f1976707a6f92e9765c-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/cdb286e59288640d1772913ed0d9517b-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/33b6eda810ea78692270c68f586e5b15-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/507d2ced414ed15d61bd91e3289dbbc9-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/3e3ae948e2cc992b7daed5f6e435d3ea-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/74a9a39431b1a53bfd984d7196a9d41e-cc_ft_1536.jpg"
+   ],
+   "beds": 4,
+   "baths": 4,
+   "sqft": 4384,
+   "acres": 5.29,
+   "built": 2001,
+   "dom": 125,
+   "kind": "status",
+   "date": "2026-11-17",
+   "address": "4367 Tallyrand Cir",
+   "city": "Castle Rock, CO 80104",
+   "price": 1250000,
+   "oldStatus": "For sale",
+   "newStatus": "Pending",
+   "style": "Mountain Contemporary",
+   "hoa": "None",
+   "headline": "Went pending",
+   "note": "Pending, still accepting backup offers.",
+   "ppsf": 285,
+   "id": "13496312-status"
+  },
+  {
+   "zpid": "97855961",
+   "url": "https://www.zillow.com/homedetails/7781-S-Pitkin-Ct-Centennial-CO-80016/97855961_zpid/",
+   "photos": [
+    "https://photos.zillowstatic.com/fp/606d1bb7e65a417bd39d04f1703751f8-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/5c38fa99f9f86c378ed15d8e29d54464-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/7f60897c584acdd06ecf82cf5df0ee95-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/eced07700722f7d1c2bb5d8bdb8ca714-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/f83a201b8b5482bbcd7a4fbbdfa305b0-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/44056fe5f8d89408c37681293597adce-cc_ft_1536.jpg",
+    "https://photos.zillowstatic.com/fp/6b8de1d81e79a336133aaaee2beeeb26-cc_ft_1536.jpg"
+   ],
+   "beds": 4,
+   "baths": 3,
+   "sqft": 4665,
+   "acres": 1.29,
+   "built": 1980,
+   "dom": 5,
+   "kind": "new",
+   "date": "2026-11-14",
+   "address": "7781 S Pitkin Ct",
+   "city": "Centennial, CO 80016",
+   "price": 950000,
+   "style": "Ranch with pool",
+   "hoa": "$104/mo",
+   "headline": "New match",
+   "note": "1980 ranch with a pool on 1.29 acres. Saved to Shared Faves.",
+   "ppsf": 204,
+   "id": "97855961-new"
+  }
+ ],
+ "updated": "2026-11-19T08:54:43-07:00"
+}

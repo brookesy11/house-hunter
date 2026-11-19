@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>House Hunter</title>
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="House Hunter">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top" id="top">
+  <div class="topInner">
+    <div class="titles">
+      <p class="eyebrow" id="eyebrow">House Hunter</p>
+      <h1 id="title">Showings</h1>
+    </div>
+    <div class="topBtns">
+      <button class="iconBtn" id="refreshBtn" type="button" aria-label="Refresh">
+        <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.34 5.66" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="iconBtn" id="settingsBtn" type="button" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section id="tab-showings" class="tab" data-title="Showings"></section>
+  <section id="tab-alerts" class="tab" data-title="Alerts & New Homes" hidden></section>
+</main>
+
+<nav class="tabbar" aria-label="Tabs">
+  <button class="tabBtn on" data-tab="showings" type="button">
+    <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M8.5 14.5l2.2 2.2 4.8-4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Showings</span>
+  </button>
+  <button class="tabBtn" data-tab="alerts" type="button">
+    <span class="tabIco"><svg viewBox="0 0 24 24"><path d="M3.5 11.2 12 4l8.5 7.2V20a1 1 0 0 1-1 1h-4.8v-5.6H9.3V21H4.5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg><i class="dotBadge" id="alertDot" hidden></i></span>
+    <span>Alerts &amp; New</span>
+  </button>
+</nav>
+
+<div id="sheet" class="sheetWrap" hidden>
+  <div class="sheetBg" data-close></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="grab"></div>
+    <h2>Settings</h2>
+    <div class="group">
+      <button class="row" id="lockBtn" type="button"><span>Lock showings on this device</span><span class="chev">🔒</span></button>
+      <button class="row" id="reloadBtn" type="button"><span>Check for updates</span><span class="chev">↻</span></button>
+    </div>
+    <p class="fine" id="aboutLine"></p>
+    <button class="doneBtn" type="button" data-close>Done</button>
+  </div>
+</div>
+
+<div id="viewer" class="viewer" hidden>
+  <div class="vTop"><span id="vCount" class="vCount"></span><button class="vClose" id="vClose" type="button" aria-label="Close">✕</button></div>
+  <div class="vTrack" id="vTrack"></div>
+  <button class="arrow left vArrow" id="vPrev" type="button" aria-label="Previous photo">‹</button>
+  <button class="arrow right vArrow" id="vNext" type="button" aria-label="Next photo">›</button>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

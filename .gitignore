@@ -1,0 +1,4 @@
+*.plain.json
+showings.plain*
+*.secret
+.env
