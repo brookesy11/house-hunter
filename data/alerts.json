@@ -4,8 +4,14 @@
    "zpid": "13434044",
    "url": "https://www.zillow.com/homedetails/9093-Flamingo-Way-Littleton-CO-80125/13434044_zpid/",
    "photos": [
-    "https://photos.zillowstatic.com/fp/df7e784558560ae43b905b37301184a6-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/719a5298d812a424af24c9a867b4018f-cc_ft_1536.jpg"
+    {
+     "url": "https://photos.zillowstatic.com/fp/df7e784558560ae43b905b37301184a6-cc_ft_1536.jpg",
+     "label": "Views"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/719a5298d812a424af24c9a867b4018f-cc_ft_1536.jpg",
+     "label": "Front"
+    }
    ],
    "beds": 5,
    "baths": 4,
@@ -30,14 +36,38 @@
    "zpid": "13478407",
    "url": "https://www.zillow.com/homedetails/11986-Bear-Creek-Dr-Franktown-CO-80116/13478407_zpid/",
    "photos": [
-    "https://photos.zillowstatic.com/fp/a0b97ab563bfe6b804629490f227a1ad-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/bd78a91edbc6e566de8226b1ec3d810a-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/becb2912f214850436b1f0646f165453-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/de6444d41edd252d7408fe8d54c7ba8d-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/7157d3f1bf92684deb2dc97d68beaba5-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/b5513004697ffadc164512ce574893a7-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/8708c64e714c3098c8c82e1c221f1130-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/22055b7ac2df407601f79fe65d709c4a-cc_ft_1536.jpg"
+    {
+     "url": "https://photos.zillowstatic.com/fp/a0b97ab563bfe6b804629490f227a1ad-cc_ft_1536.jpg",
+     "label": "Front"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/22055b7ac2df407601f79fe65d709c4a-cc_ft_1536.jpg",
+     "label": "Kitchen"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/bd78a91edbc6e566de8226b1ec3d810a-cc_ft_1536.jpg",
+     "label": "Patio & yard"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/becb2912f214850436b1f0646f165453-cc_ft_1536.jpg",
+     "label": "Aerial · 1.8 ac"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/7157d3f1bf92684deb2dc97d68beaba5-cc_ft_1536.jpg",
+     "label": "Living"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/b5513004697ffadc164512ce574893a7-cc_ft_1536.jpg",
+     "label": "Fireplace"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/de6444d41edd252d7408fe8d54c7ba8d-cc_ft_1536.jpg",
+     "label": "Garage"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/8708c64e714c3098c8c82e1c221f1130-cc_ft_1536.jpg",
+     "label": "Dining"
+    }
    ],
    "beds": 6,
    "baths": 2,
@@ -80,14 +110,38 @@
    "zpid": "13496312",
    "url": "https://www.zillow.com/homedetails/4367-Tallyrand-Cir-Castle-Rock-CO-80104/13496312_zpid/",
    "photos": [
-    "https://photos.zillowstatic.com/fp/b6e04d636d468186d6ccd94f4ad8dbc9-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/8a062f1880a8fbc8e1a70ea98f32111d-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/3b7b92e5f1476f1976707a6f92e9765c-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/cdb286e59288640d1772913ed0d9517b-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/33b6eda810ea78692270c68f586e5b15-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/507d2ced414ed15d61bd91e3289dbbc9-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/3e3ae948e2cc992b7daed5f6e435d3ea-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/74a9a39431b1a53bfd984d7196a9d41e-cc_ft_1536.jpg"
+    {
+     "url": "https://photos.zillowstatic.com/fp/b6e04d636d468186d6ccd94f4ad8dbc9-cc_ft_1536.jpg",
+     "label": "Front"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/8a062f1880a8fbc8e1a70ea98f32111d-cc_ft_1536.jpg",
+     "label": "Front"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/3e3ae948e2cc992b7daed5f6e435d3ea-cc_ft_1536.jpg",
+     "label": "Kitchen"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/3b7b92e5f1476f1976707a6f92e9765c-cc_ft_1536.jpg",
+     "label": "Back & deck"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/cdb286e59288640d1772913ed0d9517b-cc_ft_1536.jpg",
+     "label": "Views"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/507d2ced414ed15d61bd91e3289dbbc9-cc_ft_1536.jpg",
+     "label": "Living"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/74a9a39431b1a53bfd984d7196a9d41e-cc_ft_1536.jpg",
+     "label": "Nook"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/33b6eda810ea78692270c68f586e5b15-cc_ft_1536.jpg",
+     "label": "Dining"
+    }
    ],
    "beds": 4,
    "baths": 4,
@@ -113,13 +167,34 @@
    "zpid": "97855961",
    "url": "https://www.zillow.com/homedetails/7781-S-Pitkin-Ct-Centennial-CO-80016/97855961_zpid/",
    "photos": [
-    "https://photos.zillowstatic.com/fp/606d1bb7e65a417bd39d04f1703751f8-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/5c38fa99f9f86c378ed15d8e29d54464-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/7f60897c584acdd06ecf82cf5df0ee95-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/eced07700722f7d1c2bb5d8bdb8ca714-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/f83a201b8b5482bbcd7a4fbbdfa305b0-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/44056fe5f8d89408c37681293597adce-cc_ft_1536.jpg",
-    "https://photos.zillowstatic.com/fp/6b8de1d81e79a336133aaaee2beeeb26-cc_ft_1536.jpg"
+    {
+     "url": "https://photos.zillowstatic.com/fp/606d1bb7e65a417bd39d04f1703751f8-cc_ft_1536.jpg",
+     "label": "Front"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/5c38fa99f9f86c378ed15d8e29d54464-cc_ft_1536.jpg",
+     "label": "Kitchen"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/44056fe5f8d89408c37681293597adce-cc_ft_1536.jpg",
+     "label": "Basement"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/7f60897c584acdd06ecf82cf5df0ee95-cc_ft_1536.jpg",
+     "label": "Living"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/f83a201b8b5482bbcd7a4fbbdfa305b0-cc_ft_1536.jpg",
+     "label": "Kitchen"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/eced07700722f7d1c2bb5d8bdb8ca714-cc_ft_1536.jpg",
+     "label": "Bedroom"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/6b8de1d81e79a336133aaaee2beeeb26-cc_ft_1536.jpg",
+     "label": "Bedroom"
+    }
    ],
    "beds": 4,
    "baths": 3,
@@ -140,5 +215,5 @@
    "id": "97855961-new"
   }
  ],
- "updated": "2026-11-19T08:54:43-07:00"
+ "updated": "2026-11-19T09:47:45-07:00"
 }
