@@ -81,11 +81,20 @@
   function postHook(payload) {
     var c = hookCfg(); if (!c) return Promise.reject(new Error("nocfg"));
     var body = JSON.stringify(Object.assign({ source: "house-hunter-app", sentAt: new Date().toISOString() }, payload));
-    return fetch(c.url, { method: "POST", mode: "cors", credentials: "omit", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + c.key }, body: body })
+    if (navigator.onLine === false) return Promise.reject(new Error("offline"));
+    /* The routine host accepts the POST but its response has no CORS headers, so the browser hides it (TypeError).
+       The request still lands and starts the run, so a TypeError while online counts as sent. Only a readable 4xx/5xx or
+       being offline is an error. */
+    return fetch(c.url, { method: "POST", mode: "cors", credentials: "omit", keepalive: true, headers: { "Content-Type": "application/json", "Authorization": "Bearer " + c.key }, body: body })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r; },
-            function (e) { throw new Error("blocked"); });
+            function () { if (navigator.onLine === false) throw new Error("offline"); return { ok: true, opaque: true }; });
   }
-  function hookErr(e) { return e.message === "blocked" ? "Couldn't reach the webhook (blocked by the browser or offline)" : e.message === "HTTP 401" || e.message === "HTTP 403" ? "Webhook key rejected" : "Webhook error: " + e.message; }
+  function hookErr(e) { return e.message === "offline" ? "Offline" : e.message === "HTTP 401" || e.message === "HTTP 403" ? "Webhook key rejected" : "Webhook error (" + e.message + ")"; }
+  var reorderTimer = null;
+  function queueReorderPost(date, stops) {   /* one server run ~4 s after the last move, not one per tap */
+    clearTimeout(reorderTimer);
+    reorderTimer = setTimeout(function () { postHook({ action: "reorder", date: date, stops: stops }).catch(function (e) { toast(hookErr(e)); }); }, 4000);
+  }
   function openSettings(focusHook) {
     $("#settingsBtn").onclick();
     if (focusHook) setTimeout(function () { $("#hookUrl").focus(); }, 250);
@@ -136,7 +145,7 @@
   function reorder(day, order) {
     if (order.join() === day.showings.map(function (s) { return s.zpid; }).join()) {
       localStorage.removeItem(ORDER_PREFIX + day.date); renderShowings();
-      if (hookCfg()) postHook({ action: "reorder", date: day.date, stops: stopsPayload(day) }).catch(function () {});
+      if (hookCfg()) queueReorderPost(day.date, stopsPayload(day));
       return Promise.resolve();
     }
     var by = {}; day.showings.forEach(function (s) { by[s.zpid] = s; });
@@ -160,7 +169,7 @@
       });
       localStorage.setItem(ORDER_PREFIX + day.date, JSON.stringify({ gen: day.generated, order: order, legs: legs, at: Date.now() }));
       var nd = applyOrder(day);
-      if (hookCfg()) postHook({ action: "reorder", date: day.date, stops: stopsPayload(nd) }).catch(function () {});
+      if (hookCfg()) queueReorderPost(day.date, stopsPayload(nd));
       renderShowings(); toast("Route updated");
     }).catch(function () { toast("Couldn't update the route. Try again."); });
   }
