@@ -60,6 +60,13 @@
       <button class="row" id="lockBtn" type="button"><span>Lock showings on this device</span><span class="chev">🔒</span></button>
       <button class="row" id="reloadBtn" type="button"><span>Check for updates</span><span class="chev">↻</span></button>
     </div>
+    <div class="group hookGroup">
+      <label class="hookLbl" for="hookUrl">Webhook URL</label>
+      <input class="hookIn" id="hookUrl" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…">
+      <label class="hookLbl" for="hookKey">Key</label>
+      <input class="hookIn" id="hookKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="key or Authorization: Bearer …">
+      <div class="hookRow"><button class="hookBtn" id="hookSave" type="button">Save</button><button class="hookBtn ghost" id="hookClear" type="button">Clear</button><span id="hookStatus"></span></div>
+    </div>
     <p class="fine" id="aboutLine"></p>
     <button class="doneBtn" type="button" data-close>Done</button>
   </div>
