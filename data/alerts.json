@@ -1,6 +1,164 @@
 {
  "items": [
   {
+   "kind": "status",
+   "zpid": "13525013",
+   "date": "2026-11-21",
+   "oldStatus": "For sale",
+   "newStatus": "Pending · accepting backups",
+   "price": 899900,
+   "address": "41346 Pine Meadow Circle",
+   "city": "Parker, CO 80138",
+   "url": "https://www.zillow.com/homedetails/41346-Pine-Meadow-Cir-Parker-CO-80138/13525013_zpid/",
+   "beds": 7,
+   "baths": 4,
+   "sqft": 4467,
+   "acres": 1.53,
+   "built": 1998,
+   "style": "Two-story",
+   "hoa": "—",
+   "ppsf": 201,
+   "dom": 120,
+   "history": [
+    {
+     "date": "7/23",
+     "price": 925000
+    },
+    {
+     "date": "11/10",
+     "price": 899900
+    }
+   ],
+   "photos": [
+    {
+     "url": "https://photos.zillowstatic.com/fp/48b933861fc60169f421dee18cf0d001-cc_ft_1536.jpg",
+     "label": "Front"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/e6fd9f4e97b7f97b2211f50832b8086b-cc_ft_1536.jpg",
+     "label": "Kitchen"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/eb9bb4324bea40c5512f9bb27f8255e0-cc_ft_1536.jpg",
+     "label": "Acreage"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/02a74a20ce98a3b2513f00190999243d-cc_ft_1536.jpg",
+     "label": "Views"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/39b463efe8cd420ecfc2e6a3f2e29686-cc_ft_1536.jpg",
+     "label": "Living"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/61b15282e44d392379f52486b6f9b9be-cc_ft_1536.jpg",
+     "label": "Loft"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/76bca7566e510a1181e1a28af76f8ac3-cc_ft_1536.jpg",
+     "label": "Primary"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/bab20c4fd10bdbd513b60d943c2970e1-cc_ft_1536.jpg",
+     "label": "Dining"
+    }
+   ],
+   "id": "13525013-status",
+   "listing": {
+    "zpid": "13525013",
+    "url": "https://www.zillow.com/homedetails/41346-Pine-Meadow-Cir-Parker-CO-80138/13525013_zpid/",
+    "status": "Pending · accepting backups",
+    "price": 899900,
+    "priceChange": -25100,
+    "beds": 7,
+    "baths": 4,
+    "sqft": 4467,
+    "acres": 1.53,
+    "built": 1998,
+    "description": "Tucked away at the end of a private cul-de-sac in the highly desirable Deer Creek Farm neighborhood, this exceptional property offers a rare combination of privacy, space, & peaceful country living. Surrounded by rolling hills & mature ponderosa pines, the home enjoys a picturesque setting with room to spread out. Offering more than 4,300 finished sq ft, this spacious home features 7 bedrooms & 4 bathrooms, providing exceptional flexibility for family, guests, or multi-generational living. At the heart of the home, the beautifully updated kitchen features granite countertops, a generous center island, stainless steel appliances, double ovens, & a gas cooktop, perfect for everyday living & entertaining. The spacious primary suite offers a private retreat complete with a cozy fireplace, oversized walk-in closet, & luxurious five-piece bath. The fully finished walkout basement expands the home's versatility with two additional bedrooms, a pellet stove, & a kitchenette, creating an ideal space for extended family, guests, or separate living quarters. Bring your RV, recreational vehicles, & hobbies! The oversized 933 sq ft attached garage, two storage sheds, & the 24' x 40' RV pad provide outstanding space for vehicles, storage, & workshop needs. There's even a chicken coop for those looking to enjoy a little backyard homesteading! Major improvements provide added peace of mind, including a new furnace, air conditioner, & roof, all replaced in 2025. Ideally situated between Parker & Elizabeth, & just six minutes from Singing Hills Elementary School. **Bonus Purchase**$50,000 Discount** The adjacent vacant 1.53 acre lot to the southeast is also available and currently listed at $175,000. Purchase this home and the vacant lot together and receive a $50,000 discount on the lot. 1.53 acres for just $125,000.  Address for the separately deeded lot is 41324 Pine Meadow Cir. Parker, CO. MLS #9504272.",
+    "photos": [
+     "https://photos.zillowstatic.com/fp/48b933861fc60169f421dee18cf0d001-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/eb9bb4324bea40c5512f9bb27f8255e0-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/02a74a20ce98a3b2513f00190999243d-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/d24d865db4fe036c417aba3c1fedb856-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/0c53a760bf8b2b78c950845e94447045-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/613a6285455decfabffd8f8633d7acac-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/39b463efe8cd420ecfc2e6a3f2e29686-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/2b34833b0797ba0164bf0a97e2983883-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/61b15282e44d392379f52486b6f9b9be-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/06b5ed15e19a1576229d863e787c788f-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/a902bb8036fca142c6082c9cfb4111b0-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/4b30a6cadb8e99e2fdc92015b1e4714d-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/e6fd9f4e97b7f97b2211f50832b8086b-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/7f8018bc83060676c2c2109fb4743d12-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/daabd467465f6ed82a5698363e909042-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/a17be3be90ce6d6f188af19ef15f1355-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/68066c42347efc8caaf28fd96eca1b19-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/9f0fe5630a5ad562b2b1265861159185-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/215cd1622273a84b23984acc3c91b3a6-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/bab20c4fd10bdbd513b60d943c2970e1-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/7a0786fc304ae04a77324ba6f37571fe-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/5c9eed3b2908d5a92fe2a9b57445f4fe-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/efa25aedae7277dc558faa0d52a795bc-cc_ft_1536.jpg",
+     "https://photos.zillowstatic.com/fp/76bca7566e510a1181e1a28af76f8ac3-cc_ft_1536.jpg"
+    ],
+    "facts": [
+     [
+      "Lot",
+      "1.53 acres"
+     ],
+     [
+      "Garage",
+      "4-car attached · oversized"
+     ],
+     [
+      "Basement",
+      "Fully finished walkout basement"
+     ],
+     [
+      "On Zillow",
+      "120 days"
+     ],
+     [
+      "MLS #",
+      "6313157"
+     ],
+     [
+      "Status",
+      "Pending · accepting backups"
+     ],
+     [
+      "Type",
+      "Single Family Residence"
+     ],
+     [
+      "Per sq ft",
+      "$201"
+     ]
+    ],
+    "history": [
+     {
+      "date": "2013-10-30",
+      "label": "Sold",
+      "price": 430000
+     },
+     {
+      "date": "2026-07-23",
+      "label": "Listed",
+      "price": 925000
+     },
+     {
+      "date": "2026-11-10",
+      "label": "Price change",
+      "price": 899900
+     }
+    ],
+    "mls": "6313157",
+    "dom": 120,
+    "fetched": "2026-11-21T08:10:07-07:00"
+   }
+  },
+  {
    "zpid": "13434044",
    "url": "https://www.zillow.com/homedetails/9093-Flamingo-Way-Littleton-CO-80125/13434044_zpid/",
    "photos": [
@@ -479,5 +637,5 @@
    "lists": []
   }
  ],
- "updated": "2026-11-20T18:28:27-07:00"
+ "updated": "2026-11-21T08:12:47-07:00"
 }
