@@ -1,60 +1,6 @@
 {
  "items": [
   {
-   "zpid": "82592771",
-   "address": "41920 Muirfield Loop",
-   "city": "Elizabeth",
-   "url": "https://www.zillow.com/homedetails/41920-Muirfield-Loop-Elizabeth-CO-80107/82592771_zpid/",
-   "price": 1200000,
-   "beds": 4,
-   "baths": 3,
-   "sqft": 4954,
-   "acres": 3.78,
-   "built": 2007,
-   "style": "Ranch",
-   "hoa": "$135/qtr",
-   "dom": 0,
-   "note": "2007 ranch with walkout on 3.78 level acres in Spring Valley Ranch; room AC, not central; $135/qtr HOA",
-   "kind": "new",
-   "date": "2026-11-20",
-   "photos": [
-    {
-     "url": "https://photos.zillowstatic.com/fp/61818ab3e3516ec32fc6bb441af1d43f-cc_ft_1536.jpg",
-     "label": "Main"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/4a42a35a48fac15a3f03f71b1d346ccf-cc_ft_1536.jpg",
-     "label": "Exterior"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/088b3646c0dbe582a2961e7ddcafbc8f-cc_ft_1536.jpg",
-     "label": "Photo"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/29615d76fb44bb8b2ffc187a314bc4ed-cc_ft_1536.jpg",
-     "label": "Photo"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/ab3c0e28770643383100e43b452a5121-cc_ft_1536.jpg",
-     "label": "Photo"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/75c0b3d32e6040ae7545aeadaf3d2599-cc_ft_1536.jpg",
-     "label": "Photo"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/f219900108b5d219ef43a45e6cdcaa81-cc_ft_1536.jpg",
-     "label": "Photo"
-    },
-    {
-     "url": "https://photos.zillowstatic.com/fp/e81f6274b918bf6a08aedad05d9fce63-cc_ft_1536.jpg",
-     "label": "Photo"
-    }
-   ],
-   "ppsf": 242,
-   "id": "82592771-new"
-  },
-  {
    "zpid": "67825436",
    "address": "800 Cheyenne Pl",
    "city": "Parker",
@@ -587,5 +533,5 @@
    "lists": []
   }
  ],
- "updated": "2026-11-20T18:24:00-07:00"
+ "updated": "2026-11-20T18:27:37-07:00"
 }
