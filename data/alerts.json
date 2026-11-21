@@ -55,6 +55,60 @@
    "id": "82592771-new"
   },
   {
+   "zpid": "67825436",
+   "address": "800 Cheyenne Pl",
+   "city": "Parker",
+   "url": "https://www.zillow.com/homedetails/800-Cheyenne-Pl-Parker-CO-80138/67825436_zpid/",
+   "price": 1125000,
+   "beds": 4,
+   "baths": 3,
+   "sqft": 4295,
+   "acres": 5.29,
+   "built": 2005,
+   "style": "Ranch",
+   "hoa": "None",
+   "dom": 1,
+   "note": "2005 ranch with walkout, central AC, no HOA on fenced 5.29 acres about 15 min from Parker",
+   "kind": "new",
+   "date": "2026-11-20",
+   "photos": [
+    {
+     "url": "https://photos.zillowstatic.com/fp/c46876e7364b91d6c12f479e8410a957-cc_ft_1536.jpg",
+     "label": "Main"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/ae5065358656c7f3cfce6c9c5e6f178d-cc_ft_1536.jpg",
+     "label": "Exterior"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/31998c8e6c31db86ee14da636d4c8425-cc_ft_1536.jpg",
+     "label": "Photo"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/7505fbe66db51691c7863cd437fba8af-cc_ft_1536.jpg",
+     "label": "Photo"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/c4259dd57e1c15ac873d96a3aff08277-cc_ft_1536.jpg",
+     "label": "Photo"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/06c541a9144fd6e5808d1d181ae923d9-cc_ft_1536.jpg",
+     "label": "Photo"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/c75c82ad76e233bbc3ffd4ffcf8e4003-cc_ft_1536.jpg",
+     "label": "Photo"
+    },
+    {
+     "url": "https://photos.zillowstatic.com/fp/a4bade9c713349aa378749c63478ba8a-cc_ft_1536.jpg",
+     "label": "Photo"
+    }
+   ],
+   "ppsf": 262,
+   "id": "67825436-new"
+  },
+  {
    "zpid": "13434044",
    "url": "https://www.zillow.com/homedetails/9093-Flamingo-Way-Littleton-CO-80125/13434044_zpid/",
    "photos": [
@@ -533,5 +587,5 @@
    "lists": []
   }
  ],
- "updated": "2026-11-20T18:23:56-07:00"
+ "updated": "2026-11-20T18:24:00-07:00"
 }
